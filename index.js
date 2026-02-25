@@ -16,22 +16,6 @@ const client = new Client({
 
 logger.info("Bot wird gestartet...");
 
-client.once("ready", async () => {
-  logger.info(`Bot eingeloggt als ${client.user.tag}`);
-  const logChannelId = process.env.LOG_CHANNEL_ID;
-  if (logChannelId) {
-    const channel = await client.channels.fetch(logChannelId).catch(() => null);
-    if (channel && channel.isTextBased()) {
-      channel.send(":white_check_mark: Bot wurde erfolgreich gestartet!");
-      logger.info("Startnachricht in Log-Channel gesendet.");
-    } else {
-      logger.warn("Log-Channel nicht gefunden oder kein Textkanal.");
-    }
-  } else {
-    logger.warn("LOG_CHANNEL_ID nicht gesetzt.");
-  }
-});
-
 client.commands = new Collection();
 
 const commandsPath = path.join(__dirname, "commands");
