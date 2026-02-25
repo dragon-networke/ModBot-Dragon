@@ -1,28 +1,11 @@
 const antiNukeHandler = require('./antiNukeHandler');
-const channelDeleteHandler = require('./channelDelete');
-
-// Set für Deduplication
-const channelDeleteProcessed = new Set();
 
 /**
  * Registriert alle Anti-Nuke Event Handler
  * @param {Client} client - Der Discord Client
  */
 function setupAntiNukeEvents(client) {
-  // Channel Delete mit Deduplication
-  client.on('channelDelete', async channel => {
-    const key = `${channel.guild?.id}-${channel.id}`;
-    if (channelDeleteProcessed.has(key)) return;
-    
-    channelDeleteProcessed.add(key);
-    setTimeout(() => channelDeleteProcessed.delete(key), 5000);
-    
-    // Anti-Nuke ZUERST (Ban/Timeout)
-    await antiNukeHandler.handleChannelDelete(channel);
-    
-    // Dann DM senden
-    await channelDeleteHandler.execute(channel);
-  });
+  // Channel Delete wird jetzt in channelDelete.js Event Handler registriert
 
   // Role Delete
   client.on('roleDelete', role => {
