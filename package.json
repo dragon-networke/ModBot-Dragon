@@ -1,0 +1,24 @@
+{
+  "name": "modbot-dragon",
+  "version": "0.0.1-beta",
+  "description": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Wolfshole/Modbot-dragon.git"
+  },
+  "license": "ISC",
+  "author": "UEBlackWulfGHG",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "deploy": "node deploy-commands.js",
+    "deploy-global": "node deploy-commands-global.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.25.1",
+    "dotenv": "^17.2.3",
+    "nodemon": "^3.1.11"
+  }
+}
