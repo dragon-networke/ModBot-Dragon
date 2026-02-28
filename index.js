@@ -8,6 +8,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.GuildMembers, // <--- wichtig!
     GatewayIntentBits.MessageContent, // falls benötigt
     GatewayIntentBits.GuildModeration,
