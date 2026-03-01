@@ -1,3 +1,9 @@
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  ChannelType,
+  EmbedBuilder,
+} = require("discord.js");
 const fs = require("fs");
 const path = require("path");
 
@@ -8,192 +14,183 @@ function loadConfig() {
     if (!fs.existsSync(CONFIG_FILE)) return {};
     return JSON.parse(fs.readFileSync(CONFIG_FILE, "utf-8"));
   } catch (e) {
-    console.error("[VoiceSupport] Fehler beim Laden der Config:", e.message);
     return {};
   }
 }
 
-// Speichert aktive Support-Kanaele: channelId -> { userId, guildId }
-const activeChannels = new Map();
+function saveConfig(config) {
+  try {
+    const dir = path.dirname(CONFIG_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+  } catch (e) {
+    console.error("[VoiceSupport] Fehler beim Speichern:", e.message);
+  }
+}
 
 module.exports = {
-  name: "voiceStateUpdate",
+  data: new SlashCommandBuilder()
+    .setName("setupvoicesupport")
+    .setDescription("Voice-Support System einrichten")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .addSubcommand((sub) =>
+      sub
+        .setName("setup")
+        .setDescription("Voice-Support einrichten")
+        .addChannelOption((opt) =>
+          opt
+            .setName("wartekanal")
+            .setDescription(
+              "Der Sprachkanal dem User joinen um Support zu erhalten",
+            )
+            .addChannelTypes(ChannelType.GuildVoice)
+            .setRequired(true),
+        )
+        .addChannelOption((opt) =>
+          opt
+            .setName("benachrichtigungskanal")
+            .setDescription(
+              "Text-Channel wo das Support-Team benachrichtigt wird",
+            )
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(true),
+        )
+        .addRoleOption((opt) =>
+          opt
+            .setName("supportrolle")
+            .setDescription(
+              "Rolle die Zugriff auf private Support-Kanaele bekommt",
+            )
+            .setRequired(false),
+        )
+        .addChannelOption((opt) =>
+          opt
+            .setName("kategorie")
+            .setDescription("Kategorie in der private Kanaele erstellt werden")
+            .addChannelTypes(ChannelType.GuildCategory)
+            .setRequired(false),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub.setName("disable").setDescription("Voice-Support deaktivieren"),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("status")
+        .setDescription("Aktuelle Voice-Support Einstellungen anzeigen"),
+    ),
 
-  async execute(oldState, newState) {
-    try {
-      const guild = newState.guild || oldState.guild;
-      if (!guild) return;
+  async execute(interaction) {
+    const sub = interaction.options.getSubcommand();
+    const config = loadConfig();
 
-      const config = loadConfig();
-      const guildConfig = config[guild.id];
-      if (!guildConfig || !guildConfig.enabled) return;
-
-      const supportChannelId = guildConfig.supportChannelId;
-      const notifyChannelId = guildConfig.notifyChannelId;
-      const supportRoleId = guildConfig.supportRoleId;
-      const categoryId = guildConfig.categoryId || null;
-
-      // --- User joint den Support-Wartekanal ---
-      if (newState.channelId === supportChannelId) {
-        const member = newState.member;
-        if (!member || member.user.bot) return;
-
-        console.log(
-          "[VoiceSupport] " +
-            member.user.username +
-            " hat den Support-Kanal betreten",
-        );
-
-        // Privaten Kanal erstellen
-        let privateChannel;
-        try {
-          const channelOptions = {
-            name: "support-" + member.user.username,
-            type: 2, // GuildVoice
-            permissionOverwrites: [
-              {
-                id: guild.id, // @everyone
-                deny: ["Connect", "ViewChannel"],
-              },
-              {
-                id: member.id,
-                allow: ["Connect", "ViewChannel", "Speak"],
-              },
-            ],
-          };
-
-          // Support-Rolle Zugriff geben
-          if (supportRoleId) {
-            channelOptions.permissionOverwrites.push({
-              id: supportRoleId,
-              allow: ["Connect", "ViewChannel", "Speak", "MoveMembers"],
-            });
-          }
-
-          // In Kategorie erstellen falls konfiguriert
-          if (categoryId) {
-            channelOptions.parent = categoryId;
-          }
-
-          privateChannel = await guild.channels.create(channelOptions);
-          console.log(
-            "[VoiceSupport] Privater Kanal erstellt: " + privateChannel.name,
-          );
-        } catch (err) {
-          console.error(
-            "[VoiceSupport] Fehler beim Erstellen des privaten Kanals:",
-            err.message,
-          );
-          return;
-        }
-
-        // User in privaten Kanal verschieben
-        try {
-          await member.voice.setChannel(privateChannel);
-          console.log(
-            "[VoiceSupport] " +
-              member.user.username +
-              " in privaten Kanal verschoben",
-          );
-        } catch (err) {
-          console.error(
-            "[VoiceSupport] Fehler beim Verschieben des Users:",
-            err.message,
-          );
-          await privateChannel.delete().catch(() => {});
-          return;
-        }
-
-        // Aktiven Kanal speichern
-        activeChannels.set(privateChannel.id, {
-          userId: member.id,
-          guildId: guild.id,
-        });
-
-        // Support-Team benachrichtigen
-        if (notifyChannelId) {
-          try {
-            const notifyChannel = guild.channels.cache.get(notifyChannelId);
-            if (notifyChannel) {
-              const mention = supportRoleId ? "<@&" + supportRoleId + ">" : "";
-              await notifyChannel.send({
-                content: mention,
-                embeds: [
-                  {
-                    color: 0x5865f2,
-                    title: "Neuer Support-Anruf",
-                    description:
-                      "<@" + member.id + "> wartet auf Unterstuetzung!",
-                    fields: [
-                      {
-                        name: "User",
-                        value:
-                          "<@" + member.id + "> (" + member.user.username + ")",
-                        inline: true,
-                      },
-                      {
-                        name: "Privater Kanal",
-                        value: "<#" + privateChannel.id + ">",
-                        inline: true,
-                      },
-                      {
-                        name: "Erstellt",
-                        value: "<t:" + Math.floor(Date.now() / 1000) + ":R>",
-                        inline: true,
-                      },
-                    ],
-                    timestamp: new Date().toISOString(),
-                  },
-                ],
-              });
-            }
-          } catch (err) {
-            console.error(
-              "[VoiceSupport] Fehler beim Benachrichtigen:",
-              err.message,
-            );
-          }
-        }
-      }
-
-      // --- User verlaesst einen aktiven Support-Kanal ---
-      if (oldState.channelId && activeChannels.has(oldState.channelId)) {
-        const channelData = activeChannels.get(oldState.channelId);
-
-        // Pruefe ob der Kanal jetzt leer ist
-        const channel = guild.channels.cache.get(oldState.channelId);
-        if (!channel) {
-          activeChannels.delete(oldState.channelId);
-          return;
-        }
-
-        const membersInChannel = channel.members.size;
-
-        if (membersInChannel === 0) {
-          console.log(
-            "[VoiceSupport] Kanal " +
-              channel.name +
-              " ist leer, wird geloescht...",
-          );
-          try {
-            await channel.delete(
-              "Support beendet - Kanal automatisch geloescht",
-            );
-            activeChannels.delete(oldState.channelId);
-            console.log("[VoiceSupport] Kanal geloescht");
-          } catch (err) {
-            console.error(
-              "[VoiceSupport] Fehler beim Loeschen des Kanals:",
-              err.message,
-            );
-          }
-        }
-      }
-    } catch (err) {
-      console.error(
-        "[VoiceSupport] Unbehandelter Fehler in voiceStateUpdate:",
-        err.message,
+    if (sub === "setup") {
+      const wartekanal = interaction.options.getChannel("wartekanal");
+      const benachrichtigungskanal = interaction.options.getChannel(
+        "benachrichtigungskanal",
       );
+      const supportrolle = interaction.options.getRole("supportrolle");
+      const kategorie = interaction.options.getChannel("kategorie");
+
+      config[interaction.guild.id] = {
+        enabled: true,
+        supportChannelId: wartekanal.id,
+        notifyChannelId: benachrichtigungskanal.id,
+        supportRoleId: supportrolle ? supportrolle.id : null,
+        categoryId: kategorie ? kategorie.id : null,
+      };
+
+      saveConfig(config);
+
+      const embed = new EmbedBuilder()
+        .setColor(0x51cf66)
+        .setTitle("Voice-Support eingerichtet!")
+        .addFields(
+          {
+            name: "Wartekanal",
+            value: "<#" + wartekanal.id + ">",
+            inline: true,
+          },
+          {
+            name: "Benachrichtigungen",
+            value: "<#" + benachrichtigungskanal.id + ">",
+            inline: true,
+          },
+          {
+            name: "Support-Rolle",
+            value: supportrolle ? "<@&" + supportrolle.id + ">" : "Keine",
+            inline: true,
+          },
+          {
+            name: "Kategorie",
+            value: kategorie ? "<#" + kategorie.id + ">" : "Keine",
+            inline: true,
+          },
+        )
+        .setTimestamp();
+
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+    } else if (sub === "disable") {
+      if (config[interaction.guild.id]) {
+        config[interaction.guild.id].enabled = false;
+        saveConfig(config);
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(0xff6b6b)
+        .setTitle("Voice-Support deaktiviert")
+        .setDescription("Das Voice-Support System wurde deaktiviert.")
+        .setTimestamp();
+
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+    } else if (sub === "status") {
+      const guildConfig = config[interaction.guild.id];
+
+      if (!guildConfig) {
+        return interaction.reply({
+          content:
+            "Voice-Support ist noch nicht eingerichtet. Nutze /setupvoicesupport setup",
+          ephemeral: true,
+        });
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(guildConfig.enabled ? 0x51cf66 : 0xff6b6b)
+        .setTitle("Voice-Support Status")
+        .addFields(
+          {
+            name: "Status",
+            value: guildConfig.enabled ? "Aktiv" : "Deaktiviert",
+            inline: true,
+          },
+          {
+            name: "Wartekanal",
+            value: "<#" + guildConfig.supportChannelId + ">",
+            inline: true,
+          },
+          {
+            name: "Benachrichtigungen",
+            value: "<#" + guildConfig.notifyChannelId + ">",
+            inline: true,
+          },
+          {
+            name: "Support-Rolle",
+            value: guildConfig.supportRoleId
+              ? "<@&" + guildConfig.supportRoleId + ">"
+              : "Keine",
+            inline: true,
+          },
+          {
+            name: "Kategorie",
+            value: guildConfig.categoryId
+              ? "<#" + guildConfig.categoryId + ">"
+              : "Keine",
+            inline: true,
+          },
+        )
+        .setTimestamp();
+
+      await interaction.reply({ embeds: [embed], ephemeral: true });
     }
   },
 };

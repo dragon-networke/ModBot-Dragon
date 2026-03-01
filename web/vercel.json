@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "astro",
+  "env": {
+    "DISCORD_CLIENT_ID": "@discord-client-id",
+    "DISCORD_CLIENT_SECRET": "@discord-client-secret",
+    "DISCORD_REDIRECT_URI": "@discord-redirect-uri",
+    "BOT_API_URL": "@bot-api-url",
+    "BOT_API_SECRET": "@bot-api-secret"
+  }
+}
