@@ -9,8 +9,8 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildVoiceStates,
-    GatewayIntentBits.GuildMembers, // <--- wichtig!
-    GatewayIntentBits.MessageContent, // falls benötigt
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildModeration,
   ],
 });
@@ -41,6 +41,9 @@ const eventsPath = path.join(__dirname, "events");
 const eventFiles = fs
   .readdirSync(eventsPath)
   .filter((file) => file.endsWith(".js"));
+
+console.log("[DEBUG] Gefundene Event-Dateien:", eventFiles.join(", "));
+
 for (const file of eventFiles) {
   const filePath = path.join(eventsPath, file);
   const event = require(filePath);
@@ -49,7 +52,13 @@ for (const file of eventFiles) {
   } else {
     client.on(event.name, (...args) => event.execute(...args));
   }
+  console.log("[DEBUG] Event registriert: " + event.name + " aus " + file);
 }
+
+// Test: Direkter voiceStateUpdate Handler
+client.on("voiceStateUpdate", (oldState, newState) => {
+  console.log("[DEBUG RAW] voiceStateUpdate! old=" + (oldState.channelId || 'null') + " new=" + (newState.channelId || 'null'));
+});
 
 // Anti-Nuke Event Handlers Setup
 const { setupAntiNukeEvents } = require("./events/setupAntiNuke");

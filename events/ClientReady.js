@@ -1,4 +1,5 @@
 const { Events, ActivityType } = require("discord.js");
+const { startApi } = require("../api");
 const logger = require("../logger");
 
 module.exports = {
@@ -32,5 +33,9 @@ module.exports = {
       ],
       status: "dnd",
     });
+
+    // API starten
+    startApi(client);
+    logger.info("API gestartet auf Port " + (process.env.API_PORT || 3001));
   },
 };
