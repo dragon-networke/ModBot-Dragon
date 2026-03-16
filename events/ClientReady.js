@@ -1,5 +1,6 @@
 const { Events, ActivityType } = require("discord.js");
 const { startApi } = require("../api");
+const { setupMusic } = require("../musicSetup");
 const logger = require("../logger");
 
 module.exports = {
@@ -37,5 +38,13 @@ module.exports = {
     // API starten
     startApi(client);
     logger.info("API gestartet auf Port " + (process.env.API_PORT || 3001));
+
+    // Musik-Player initialisieren
+    try {
+      await setupMusic(client);
+      logger.info("Musik-Player initialisiert.");
+    } catch (e) {
+      logger.error("Fehler beim Initialisieren des Musik-Players: " + e.message);
+    }
   },
 };

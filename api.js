@@ -11,7 +11,7 @@ const API_SECRET = process.env.API_SECRET || 'changeme';
 app.use(express.json());
 app.use(cors({
   origin: process.env.DASHBOARD_URL || '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
@@ -85,8 +85,7 @@ app.get('/api/bot/guilds', requireAuth, (req, res) => {
 
 app.get('/api/config/tickets/:guildId', requireAuth, (req, res) => {
   const config = loadJson(path.join(DATA_DIR, 'tickets.json'));
-  const guildConfig = config[req.params.guildId] || null;
-  res.json(guildConfig);
+  res.json(config[req.params.guildId] || null);
 });
 
 app.put('/api/config/tickets/:guildId', requireAuth, (req, res) => {
@@ -141,6 +140,104 @@ app.put('/api/config/voicesupport/:guildId', requireAuth, (req, res) => {
   res.json({ success: ok });
 });
 
+// ==================== APPEAL CONFIG ====================
+
+app.get('/api/config/appeal/:guildId', requireAuth, (req, res) => {
+  const config = loadJson(path.join(DATA_DIR, 'appealConfig.json'));
+  res.json(config[req.params.guildId] || null);
+});
+
+app.put('/api/config/appeal/:guildId', requireAuth, (req, res) => {
+  const config = loadJson(path.join(DATA_DIR, 'appealConfig.json'));
+  config[req.params.guildId] = {
+    ...config[req.params.guildId],
+    ...req.body,
+  };
+  const ok = saveJson(path.join(DATA_DIR, 'appealConfig.json'), config);
+  res.json({ success: ok });
+});
+
+// ==================== APPEALS ====================
+
+// Alle Appeals einer Guild (optional nach Status filtern)
+app.get('/api/appeals/:guildId', requireAuth, (req, res) => {
+  const appeals = loadJson(path.join(DATA_DIR, 'appeals.json'));
+  const guildAppeals = Object.values(appeals[req.params.guildId] || {});
+
+  const { status } = req.query;
+  const filtered = status
+    ? guildAppeals.filter(a => a.status === status)
+    : guildAppeals;
+
+  filtered.sort((a, b) => b.createdAt - a.createdAt);
+  res.json(filtered);
+});
+
+// Einzelnes Appeal
+app.get('/api/appeals/:guildId/:appealId', requireAuth, (req, res) => {
+  const appeals = loadJson(path.join(DATA_DIR, 'appeals.json'));
+  const appeal  = appeals[req.params.guildId]?.[req.params.appealId];
+  if (!appeal) return res.status(404).json({ error: 'Appeal nicht gefunden' });
+  res.json(appeal);
+});
+
+// Appeal Status ändern
+app.patch('/api/appeals/:guildId/:appealId', requireAuth, async (req, res) => {
+  const { status, reviewNote } = req.body;
+  const validStatuses = ['pending', 'accepted', 'denied'];
+
+  if (!validStatuses.includes(status)) {
+    return res.status(400).json({ error: 'Ungültiger Status' });
+  }
+
+  const appeals = loadJson(path.join(DATA_DIR, 'appeals.json'));
+  const appeal  = appeals[req.params.guildId]?.[req.params.appealId];
+  if (!appeal) return res.status(404).json({ error: 'Appeal nicht gefunden' });
+
+  appeal.status     = status;
+  appeal.reviewNote = reviewNote || appeal.reviewNote;
+  appeal.reviewedAt = Date.now();
+
+  saveJson(path.join(DATA_DIR, 'appeals.json'), appeals);
+
+  // User per DM benachrichtigen wenn Bot-Client verfügbar
+  if (botClient && status !== 'pending') {
+    try {
+      const { EmbedBuilder } = require('discord.js');
+      const user   = await botClient.users.fetch(appeal.userId);
+      const guild  = botClient.guilds.cache.get(req.params.guildId);
+      const colors = { accepted: 0x22c55e, denied: 0xef4444 };
+      const labels = { accepted: 'angenommen ✅', denied: 'abgelehnt ❌' };
+
+      await user.send({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle(`Dein Appeal wurde ${labels[status]}`)
+            .setColor(colors[status])
+            .setDescription(
+              `**Server:** ${guild?.name || req.params.guildId}\n\n` +
+              (reviewNote ? `**Begründung:**\n${reviewNote}` : '')
+            )
+            .setTimestamp(),
+        ],
+      }).catch(() => {});
+    } catch { /* User nicht erreichbar */ }
+  }
+
+  res.json({ success: true, appeal });
+});
+
+// Appeal löschen
+app.delete('/api/appeals/:guildId/:appealId', requireAuth, (req, res) => {
+  const appeals = loadJson(path.join(DATA_DIR, 'appeals.json'));
+  if (!appeals[req.params.guildId]?.[req.params.appealId]) {
+    return res.status(404).json({ error: 'Appeal nicht gefunden' });
+  }
+  delete appeals[req.params.guildId][req.params.appealId];
+  saveJson(path.join(DATA_DIR, 'appeals.json'), appeals);
+  res.json({ success: true });
+});
+
 // ==================== GUILD CHANNELS & ROLES ====================
 
 app.get('/api/guild/:guildId/channels', requireAuth, async (req, res) => {
@@ -177,7 +274,8 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, timestamp: Date.now() });
 });
 
-// API starten
+// ==================== API STARTEN ====================
+
 function startApi(client) {
   botClient = client;
   app.listen(port, () => {
