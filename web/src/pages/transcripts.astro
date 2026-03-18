@@ -1,0 +1,259 @@
+---
+import '../styles/global.css';
+
+const session     = Astro.cookies.get('session')?.value;
+const sessionData = session ? JSON.parse(Buffer.from(session, 'base64').toString('utf-8')) : null;
+const user        = sessionData?.user;
+const guildId     = Astro.cookies.get('selectedGuild')?.value || '';
+
+const API_URL   = import.meta.env.PUBLIC_API_URL   || 'http://localhost:3001';
+const API_TOKEN = import.meta.env.PUBLIC_API_TOKEN || '';
+---
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ModBot Dragon · Transcripts</title>
+  <script define:vars={{ apiUrl: API_URL, apiToken: API_TOKEN, guildId }}>
+    window.__API_URL__   = apiUrl;
+    window.__API_TOKEN__ = apiToken;
+    window.__GUILD_ID__  = guildId;
+  </script>
+</head>
+<body>
+<div class="shell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-name"><span class="brand-dot"></span>ModBot Dragon</div>
+      <div class="brand-sub">Transcripts</div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/"         class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/>
+          <rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/>
+        </svg>Dashboard
+      </a>
+      <a href="/transcripts" class="nav-item active">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M4 1.5h8a1 1 0 011 1v11a1 1 0 01-1 1H4a1 1 0 01-1-1v-11a1 1 0 011-1z"/>
+          <path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3"/>
+        </svg>Transcripts
+      </a>
+      <a href="/users"    class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.76 2.24-5 5-5s5 2.24 5 5"/>
+        </svg>Nutzer
+      </a>
+      <a href="/settings" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="8" r="2"/>
+          <path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15"/>
+        </svg>Einstellungen
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <div class="user-avatar" id="sidebar-avatar">{user?.username?.[0]?.toUpperCase() ?? '?'}</div>
+        <div class="user-name">{user?.username ?? '—'}</div>
+        <a href="/auth/logout" style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);text-decoration:none;margin-left:auto;" title="Logout">↩</a>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-title">Dashboard <span class="topbar-sep">›</span> <span class="crumb-active">Transcripts</span></div>
+      <div class="topbar-right">
+        <button class="btn btn-ghost btn-sm" id="refresh-btn">
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" id="refresh-icon">
+            <path d="M13.5 8A5.5 5.5 0 112.5 8"/><path d="M13.5 4v4h-4"/>
+          </svg>Refresh
+        </button>
+      </div>
+    </header>
+
+    <main class="content">
+      <div style="display:flex;flex-direction:column;gap:28px;">
+
+        <!-- Filter -->
+        <section>
+          <div class="section-header">
+            <div class="section-title">Ticket Transcripts</div>
+            <div style="display:flex;gap:8px;">
+              <input type="text" id="search-input" placeholder="Suche nach User ID oder #..." class="field-input field-mono" style="width:220px;"/>
+              <select id="category-filter" class="field-input field-mono" style="width:140px;">
+                <option value="">Alle Kategorien</option>
+                <option value="support">Support</option>
+                <option value="bug">Bug Report</option>
+                <option value="frage">Frage</option>
+                <option value="bewerbung">Bewerbung</option>
+                <option value="report">Report</option>
+                <option value="sonstiges">Sonstiges</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">📜 Alle Transcripts</div>
+              <span class="badge badge-outline" id="transcript-count">wird geladen...</span>
+            </div>
+            <div class="table-head" style="grid-template-columns:70px 1fr 110px 1fr 120px;">
+              <span>#</span><span>User</span><span>Kategorie</span><span>Geschlossen von</span><span>Datum</span>
+            </div>
+            <div id="transcripts-body">
+              <div style="padding:32px;text-align:center;color:var(--text-muted);font-family:var(--font-mono);font-size:12px;">Lade Transcripts...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Transcript Detail Modal -->
+        <div id="transcript-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:1000;padding:24px;overflow-y:auto;">
+          <div style="max-width:800px;margin:0 auto;background:var(--bg-surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;">
+            <div style="padding:16px 20px;background:var(--bg-raised);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+              <div class="card-title" id="modal-title">Transcript</div>
+              <button onclick="closeModal()" class="btn btn-ghost btn-sm">✕ Schließen</button>
+            </div>
+            <div id="modal-body" style="padding:20px;max-height:70vh;overflow-y:auto;"></div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+<div id="toast-container"></div>
+
+<script>
+declare const window: any;
+
+const API   = () => window.__API_URL__   || 'http://localhost:3001';
+const TOKEN = () => window.__API_TOKEN__ || '';
+const GUILD = () => window.__GUILD_ID__  || '';
+
+const CAT_COLORS: Record<string,string> = {
+  support:'#3b82f6', bug:'#ef4444', frage:'#f59e0b',
+  bewerbung:'#22c55e', report:'#f97316', sonstiges:'#6b7280',
+};
+
+async function apiFetch(path: string) {
+  const res = await fetch(`${API()}${path}`, { headers: { Authorization: `Bearer ${TOKEN()}` } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+function toast(msg: string, type = 'info') {
+  const wrap = document.getElementById('toast-container');
+  if (!wrap) return;
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${{success:'✅',error:'❌',info:'ℹ️'}[type]}</span><span>${msg}</span>`;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.animation='toastOut 0.2s ease forwards'; setTimeout(()=>el.remove(),200); }, 3000);
+}
+
+let allTranscripts: any[] = [];
+
+async function loadTranscripts() {
+  const guildId = GUILD();
+  if (!guildId) return;
+
+  try {
+    // Transcripts aus tickets.json laden (geschlossene Tickets)
+    const data = await apiFetch(`/api/transcripts/${guildId}`);
+    allTranscripts = Array.isArray(data) ? data : [];
+    renderTranscripts(allTranscripts);
+  } catch (e: any) {
+    document.getElementById('transcripts-body')!.innerHTML =
+      `<div style="padding:24px;text-align:center;color:var(--red);font-family:var(--font-mono);font-size:12px;">Fehler: ${e.message}</div>`;
+  }
+}
+
+function renderTranscripts(transcripts: any[]) {
+  const body  = document.getElementById('transcripts-body')!;
+  const badge = document.getElementById('transcript-count')!;
+  badge.textContent = `${transcripts.length} Transcripts`;
+
+  if (!transcripts.length) {
+    body.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-muted);font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:8px;"><span style="font-size:28px;opacity:0.3;">📜</span><span>Keine Transcripts gefunden</span></div>`;
+    return;
+  }
+
+  body.innerHTML = transcripts.map((t: any) => {
+    const c = CAT_COLORS[t.category] || '#888';
+    const d = new Date(t.closedAt || t.createdAt).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    return `
+      <div class="table-row" style="grid-template-columns:70px 1fr 110px 1fr 120px;cursor:pointer;" onclick="openTranscript('${t.ticketNumber}')">
+        <span class="table-id">#${String(t.ticketNumber).padStart(4,'0')}</span>
+        <span class="table-user">${t.userId}</span>
+        <span><span class="cat-badge" style="background:${c}18;color:${c}">${t.category}</span></span>
+        <span style="font-size:12px;color:var(--text-secondary);">${t.closedBy || '—'}</span>
+        <span class="table-time">${d}</span>
+      </div>`;
+  }).join('');
+}
+
+(window as any).openTranscript = async (ticketNumber: string) => {
+  const modal = document.getElementById('transcript-modal')!;
+  const body  = document.getElementById('modal-body')!;
+  const title = document.getElementById('modal-title')!;
+
+  modal.style.display = 'block';
+  title.textContent   = `Transcript #${String(ticketNumber).padStart(4,'0')}`;
+  body.innerHTML      = '<div style="text-align:center;padding:32px;color:var(--text-muted);">Lade...</div>';
+
+  try {
+    const t = await apiFetch(`/api/transcripts/${GUILD()}/${ticketNumber}`);
+    const messages = t.messages || [];
+
+    body.innerHTML = `
+      <div style="margin-bottom:16px;padding:12px;background:var(--bg-raised);border-radius:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        <div><div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px;">User</div><div style="font-size:13px;">${t.userId}</div></div>
+        <div><div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px;">Kategorie</div><div style="font-size:13px;">${t.category}</div></div>
+        <div><div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px;">Nachrichten</div><div style="font-size:13px;">${messages.length}</div></div>
+      </div>
+      ${messages.map((m: any) => `
+        <div style="display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--bg-raised);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${(m.username||'?')[0].toUpperCase()}</div>
+          <div style="flex:1;">
+            <div style="display:flex;gap:8px;align-items:baseline;margin-bottom:4px;">
+              <span style="font-weight:600;font-size:13px;">${m.username || 'Unbekannt'}</span>
+              <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">${new Date(m.timestamp).toLocaleTimeString('de-DE')}</span>
+            </div>
+            <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">${m.content || '<em>Embed</em>'}</div>
+          </div>
+        </div>
+      `).join('')}
+    `;
+  } catch (e: any) {
+    body.innerHTML = `<div style="color:var(--red);font-size:13px;">Fehler: ${e.message}</div>`;
+  }
+};
+
+(window as any).closeModal = () => {
+  document.getElementById('transcript-modal')!.style.display = 'none';
+};
+
+// Filter
+document.getElementById('search-input')?.addEventListener('input', (e) => {
+  const q = (e.target as HTMLInputElement).value.toLowerCase();
+  renderTranscripts(allTranscripts.filter(t =>
+    t.userId.toLowerCase().includes(q) ||
+    String(t.ticketNumber).includes(q)
+  ));
+});
+
+document.getElementById('category-filter')?.addEventListener('change', (e) => {
+  const cat = (e.target as HTMLSelectElement).value;
+  renderTranscripts(cat ? allTranscripts.filter(t => t.category === cat) : allTranscripts);
+});
+
+document.getElementById('refresh-btn')?.addEventListener('click', () => loadTranscripts());
+
+document.addEventListener('DOMContentLoaded', () => loadTranscripts());
+</script>
+</body>
+</html>

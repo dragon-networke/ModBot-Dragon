@@ -55,11 +55,6 @@ for (const file of eventFiles) {
   console.log("[DEBUG] Event registriert: " + event.name + " aus " + file);
 }
 
-// Test: Direkter voiceStateUpdate Handler
-client.on("voiceStateUpdate", (oldState, newState) => {
-  console.log("[DEBUG RAW] voiceStateUpdate! old=" + (oldState.channelId || 'null') + " new=" + (newState.channelId || 'null'));
-});
-
 // Anti-Nuke Event Handlers Setup
 const { setupAntiNukeEvents } = require("./events/setupAntiNuke");
 setupAntiNukeEvents(client);

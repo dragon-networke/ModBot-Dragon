@@ -1,0 +1,269 @@
+---
+import '../styles/global.css';
+
+const session     = Astro.cookies.get('session')?.value;
+const sessionData = session ? JSON.parse(Buffer.from(session, 'base64').toString('utf-8')) : null;
+const user        = sessionData?.user;
+const adminGuilds = sessionData?.adminGuilds || [];
+
+// Guild auswählen
+if (Astro.request.method === 'POST') {
+  const form    = await Astro.request.formData();
+  const guildId = form.get('guildId')?.toString();
+  if (guildId) {
+    Astro.cookies.set('selectedGuild', guildId, { path: '/', maxAge: 60 * 60 * 24 });
+    return Astro.redirect('/');
+  }
+}
+---
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ModBot Dragon · Server auswählen</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #060709;
+      background-image:
+        linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      color: #f1f5f9;
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      padding: 40px 24px;
+    }
+
+    .header {
+      max-width: 800px;
+      margin: 0 auto 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    .brand-dot {
+      width: 8px; height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 10px #22c55e;
+      animation: pulse 2s ease infinite;
+    }
+
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 6px #22c55e; }
+      50%      { box-shadow: 0 0 18px #22c55e; }
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #0f1117;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+    }
+
+    .user-avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .user-avatar-placeholder {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+    }
+
+    .logout-btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: #64748b;
+      text-decoration: none;
+      letter-spacing: 0.06em;
+      margin-left: 8px;
+      transition: color 0.15s;
+    }
+    .logout-btn:hover { color: #ef4444; }
+
+    .container { max-width: 800px; margin: 0 auto; }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .page-sub {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: #64748b;
+      letter-spacing: 0.08em;
+      margin-bottom: 32px;
+    }
+
+    .guilds-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .guild-card {
+      background: #0f1117;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .guild-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 0%, rgba(59,130,246,0.1), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .guild-card:hover {
+      border-color: rgba(59,130,246,0.3);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    .guild-card:hover::before { opacity: 1; }
+
+    .guild-icon {
+      width: 64px; height: 64px;
+      border-radius: 16px;
+      margin: 0 auto 14px;
+      overflow: hidden;
+      background: #151820;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+      font-weight: 700;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .guild-icon img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+
+    .guild-name {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .guild-id {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: #334155;
+    }
+
+    .guild-btn {
+      display: block;
+      width: 100%;
+      margin-top: 14px;
+      padding: 8px;
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 6px;
+      color: #3b82f6;
+      font-family: 'Outfit', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .guild-btn:hover {
+      background: rgba(59,130,246,0.2);
+      border-color: rgba(59,130,246,0.4);
+    }
+
+    .empty {
+      text-align: center;
+      padding: 60px 24px;
+      color: #64748b;
+    }
+
+    .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+    .empty h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #94a3b8; }
+    .empty p  { font-size: 14px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">
+      <div class="brand-dot"></div>
+      ModBot Dragon
+    </div>
+    <div class="user-pill">
+      {user?.avatar
+        ? <img class="user-avatar" src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`} alt=""/>
+        : <div class="user-avatar-placeholder">{user?.username?.[0]?.toUpperCase() ?? '?'}</div>
+      }
+      <span>{user?.username ?? 'Unbekannt'}</span>
+      <a href="/auth/logout" class="logout-btn">LOGOUT</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="page-title">Server auswählen</div>
+    <div class="page-sub">WÄHLE EINEN SERVER DEN DU VERWALTEN MÖCHTEST</div>
+
+    {adminGuilds.length > 0 ? (
+      <div class="guilds-grid">
+        {adminGuilds.map((g: any) => (
+          <div class="guild-card">
+            <div class="guild-icon">
+              {g.icon
+                ? <img src={`https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=128`} alt=""/>
+                : g.name[0]
+              }
+            </div>
+            <div class="guild-name">{g.name}</div>
+            <div class="guild-id">{g.id}</div>
+            <form method="POST">
+              <input type="hidden" name="guildId" value={g.id}/>
+              <button type="submit" class="guild-btn">Verwalten →</button>
+            </form>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div class="empty">
+        <div class="empty-icon">🏰</div>
+        <h3>Keine Server gefunden</h3>
+        <p>Du hast keine Administrator-Rechte auf Servern auf denen ModBot Dragon aktiv ist.<br/>Lade den Bot zuerst auf deinen Server ein.</p>
+      </div>
+    )}
+  </div>
+</body>
+</html>

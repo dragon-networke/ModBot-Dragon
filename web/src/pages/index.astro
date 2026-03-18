@@ -1,12 +1,10 @@
 ---
 import '../styles/global.css';
 
-// Statische Fallback-Daten (werden client-seitig durch echte API-Daten ersetzt)
-const GUILD_ID   = 'YOUR_GUILD_ID'; // Später aus Session
-
-const API_URL    = import.meta.env.PUBLIC_API_URL       || 'http://localhost:3001';
-const API_TOKEN  = import.meta.env.PUBLIC_API_TOKEN     || '';
-const CLIENT_ID  = import.meta.env.PUBLIC_DISCORD_CLIENT_ID || '';
+const API_URL   = import.meta.env.PUBLIC_API_URL   || 'http://localhost:3001';
+const API_TOKEN = import.meta.env.PUBLIC_API_TOKEN || '';
+const CLIENT_ID = import.meta.env.PUBLIC_DISCORD_CLIENT_ID || '';
+const GUILD_ID  = '';
 
 const logConfig = [
   { label: 'Nachrichten gelöscht',   sub: 'MessageDelete',         on: true  },
@@ -25,12 +23,11 @@ const logConfig = [
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ModBot Dragon · Dashboard</title>
-  <script define:vars={{ botApi: BOT_API, dashApi: DASH_API, botSecret: BOT_SECRET, clientId: CLIENT_ID, guildId: GUILD_ID }}>
-    window.__BOT_API__    = botApi;
-    window.__DASH_API__   = dashApi;
-    window.__BOT_SECRET__ = botSecret;
-    window.__CLIENT_ID__  = clientId;
-    window.__GUILD_ID__   = guildId;
+  <script define:vars={{ apiUrl: API_URL, apiToken: API_TOKEN, clientId: CLIENT_ID, guildId: GUILD_ID }}>
+    window.__API_URL__   = apiUrl;
+    window.__API_TOKEN__ = apiToken;
+    window.__CLIENT_ID__ = clientId;
+    window.__GUILD_ID__  = guildId;
   </script>
 </head>
 <body>

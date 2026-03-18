@@ -1,0 +1,91 @@
+---
+// src/pages/auth/callback.astro
+// Verarbeitet den Discord OAuth2 Callback
+
+const code = Astro.url.searchParams.get('code');
+
+if (!code) {
+  return Astro.redirect('/login?error=no_code');
+}
+
+const CLIENT_ID     = import.meta.env.DISCORD_CLIENT_ID     || import.meta.env.PUBLIC_DISCORD_CLIENT_ID || '';
+const CLIENT_SECRET = import.meta.env.DISCORD_CLIENT_SECRET || '';
+const REDIRECT_URI  = import.meta.env.PUBLIC_DISCORD_REDIRECT_URI || 'http://localhost:4321/auth/callback';
+
+try {
+  // 1. Access Token von Discord holen
+  const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id:     CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      grant_type:    'authorization_code',
+      code,
+      redirect_uri:  REDIRECT_URI,
+    }),
+  });
+
+  if (!tokenRes.ok) {
+    throw new Error('Token-Anfrage fehlgeschlagen: ' + tokenRes.status);
+  }
+
+  const tokenData   = await tokenRes.json();
+  const accessToken = tokenData.access_token;
+
+  // 2. User-Info holen
+  const userRes = await fetch('https://discord.com/api/users/@me', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!userRes.ok) throw new Error('User-Anfrage fehlgeschlagen');
+  const user = await userRes.json();
+
+  // 3. Guilds holen um Admin-Status zu prüfen
+  const guildsRes = await fetch('https://discord.com/api/users/@me/guilds', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  const guilds = guildsRes.ok ? await guildsRes.json() : [];
+
+  // Nur Guilds wo User Admin ist
+  const adminGuilds = guilds.filter((g: any) =>
+    (BigInt(g.permissions) & BigInt(0x8)) === BigInt(0x8)
+  );
+
+  // 4. Session-Cookie setzen (24h)
+  const sessionData = {
+    user: {
+      id:            user.id,
+      username:      user.username,
+      avatar:        user.avatar,
+      discriminator: user.discriminator,
+    },
+    accessToken,
+    adminGuilds: adminGuilds.map((g: any) => ({
+      id:   g.id,
+      name: g.name,
+      icon: g.icon,
+    })),
+    expires: Date.now() + 1000 * 60 * 60 * 24, // 24h
+  };
+
+  const sessionBase64 = Buffer.from(JSON.stringify(sessionData)).toString('base64');
+
+  Astro.cookies.set('session', sessionBase64, {
+    path:     '/',
+    httpOnly: true,
+    maxAge:   60 * 60 * 24,
+    sameSite: 'lax',
+  });
+
+  // 5. Weiterleiten
+  return Astro.redirect('/guild');
+
+} catch (e: any) {
+  console.error('[Auth] OAuth2 Fehler:', e.message);
+  return Astro.redirect('/login?error=oauth_failed');
+}
+---
+<!-- Wird nie gerendert da immer redirect -->
+<p>Weiterleitung...</p>

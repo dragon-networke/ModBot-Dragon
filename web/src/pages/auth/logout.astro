@@ -1,0 +1,6 @@
+---
+// src/pages/auth/logout.astro
+Astro.cookies.delete('session',       { path: '/' });
+Astro.cookies.delete('selectedGuild', { path: '/' });
+return Astro.redirect('/login');
+---

@@ -1,0 +1,286 @@
+---
+import '../styles/global.css';
+
+const session     = Astro.cookies.get('session')?.value;
+const sessionData = session ? JSON.parse(Buffer.from(session, 'base64').toString('utf-8')) : null;
+const user        = sessionData?.user;
+const guildId     = Astro.cookies.get('selectedGuild')?.value || '';
+
+const API_URL   = import.meta.env.PUBLIC_API_URL   || 'http://localhost:3001';
+const API_TOKEN = import.meta.env.PUBLIC_API_TOKEN || '';
+---
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ModBot Dragon · Einstellungen</title>
+  <script define:vars={{ apiUrl: API_URL, apiToken: API_TOKEN, guildId }}>
+    window.__API_URL__   = apiUrl;
+    window.__API_TOKEN__ = apiToken;
+    window.__GUILD_ID__  = guildId;
+  </script>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-name"><span class="brand-dot"></span>ModBot Dragon</div>
+      <div class="brand-sub">Einstellungen</div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/"            class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/>
+          <rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/>
+        </svg>Dashboard
+      </a>
+      <a href="/transcripts" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M4 1.5h8a1 1 0 011 1v11a1 1 0 01-1 1H4a1 1 0 01-1-1v-11a1 1 0 011-1z"/>
+          <path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3"/>
+        </svg>Transcripts
+      </a>
+      <a href="/users"       class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.76 2.24-5 5-5s5 2.24 5 5"/>
+        </svg>Nutzer
+      </a>
+      <a href="/settings"    class="nav-item active">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="8" r="2"/>
+          <path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15"/>
+        </svg>Einstellungen
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <div class="user-avatar">{user?.username?.[0]?.toUpperCase() ?? '?'}</div>
+        <div class="user-name">{user?.username ?? '—'}</div>
+        <a href="/auth/logout" style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);text-decoration:none;margin-left:auto;" title="Logout">↩</a>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-title">Dashboard <span class="topbar-sep">›</span> <span class="crumb-active">Einstellungen</span></div>
+      <div class="topbar-right">
+        <button class="btn btn-ghost btn-sm" onclick="window.location.href='/guild'">Server wechseln</button>
+        <a href="/auth/logout" class="btn btn-ghost btn-sm">Logout</a>
+      </div>
+    </header>
+
+    <main class="content">
+      <div style="display:flex;flex-direction:column;gap:28px;">
+
+        <!-- Bot Info -->
+        <section>
+          <div class="section-header"><div class="section-title">Bot Information</div></div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">🐉 ModBot Dragon</div></div>
+            <div style="padding:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);">
+              {[
+                { label: 'Version',    id: 'info-version',  fallback: 'v2.4.1' },
+                { label: 'Status',     id: 'info-status',   fallback: '—' },
+                { label: 'Ping',       id: 'info-ping',     fallback: '—' },
+                { label: 'Uptime',     id: 'info-uptime',   fallback: '—' },
+                { label: 'Server',     id: 'info-guilds',   fallback: '—' },
+                { label: 'Nutzer',     id: 'info-users',    fallback: '—' },
+              ].map(item => (
+                <div style="background:var(--bg-surface);padding:14px 18px;">
+                  <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:6px;">{item.label}</div>
+                  <div style="font-family:var(--font-mono);font-size:16px;font-weight:500;" id={item.id}>{item.fallback}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <div class="two-col">
+
+          <!-- Bot einladen -->
+          <div class="card">
+            <div class="card-head"><div class="card-title">🔗 Bot einladen</div></div>
+            <div style="padding:18px;display:flex;flex-direction:column;gap:14px;">
+              <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;">
+                Lade ModBot Dragon auf einen weiteren Server ein. Du benötigst Administrator-Rechte auf dem Zielserver.
+              </p>
+              <div style="background:var(--bg-raised);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="invite-url-display">
+                Wird generiert...
+              </div>
+              <div style="display:flex;gap:8px;">
+                <a id="invite-link" href="#" target="_blank" class="btn btn-primary btn-sm">
+                  Bot einladen →
+                </a>
+                <button class="btn btn-ghost btn-sm" onclick="copyInvite()">Kopieren</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Server wechseln -->
+          <div class="card">
+            <div class="card-head"><div class="card-title">🌐 Server verwalten</div></div>
+            <div style="padding:18px;display:flex;flex-direction:column;gap:14px;">
+              <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;">
+                Wechsle zu einem anderen Server oder verwalte mehrere Server gleichzeitig.
+              </p>
+              <div id="guild-list-mini" style="display:flex;flex-direction:column;gap:6px;">
+                <div style="color:var(--text-muted);font-size:12px;">Lade...</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Dangerous Zone -->
+        <section>
+          <div class="section-header"><div class="section-title">Gefahrenzone</div></div>
+          <div class="card" style="border-color:rgba(239,68,68,0.2);">
+            <div class="card-head" style="background:rgba(239,68,68,0.05);">
+              <div class="card-title" style="color:var(--red);">⚠️ Kritische Aktionen</div>
+            </div>
+            <div style="padding:18px;display:flex;flex-direction:column;gap:12px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg-raised);border-radius:8px;border:1px solid var(--border);">
+                <div>
+                  <div style="font-size:13px;font-weight:600;">Alle Tickets schließen</div>
+                  <div style="font-size:12px;color:var(--text-secondary);">Schließt alle offenen Tickets auf diesem Server</div>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="confirmAction('closeAllTickets')">Ausführen</button>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg-raised);border-radius:8px;border:1px solid var(--border);">
+                <div>
+                  <div style="font-size:13px;font-weight:600;">Bot vom Server entfernen</div>
+                  <div style="font-size:12px;color:var(--text-secondary);">Entfernt ModBot Dragon von diesem Server</div>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="confirmAction('leaveGuild')">Entfernen</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+</div>
+<div id="toast-container"></div>
+
+<script>
+declare const window: any;
+
+const API      = () => window.__API_URL__   || 'http://localhost:3001';
+const TOKEN    = () => window.__API_TOKEN__ || '';
+const GUILD    = () => window.__GUILD_ID__  || '';
+const CLIENT_ID = (window as any).__CLIENT_ID__ || '';
+
+async function apiFetch(method: string, path: string, body?: any) {
+  const res = await fetch(`${API()}${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${TOKEN()}`, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function toast(msg: string, type = 'info') {
+  const wrap = document.getElementById('toast-container');
+  if (!wrap) return;
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${{success:'✅',error:'❌',info:'ℹ️'}[type]}</span><span>${msg}</span>`;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.animation='toastOut 0.2s ease forwards'; setTimeout(()=>el.remove(),200); }, 3000);
+}
+
+async function loadBotInfo() {
+  try {
+    const s = await apiFetch('GET', '/api/bot/status');
+    const set = (id: string, v: string) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('info-status', s.status === 'online' ? '🟢 Online' : '🔴 Offline');
+    set('info-ping',   s.ping ? `${s.ping}ms` : '—');
+    set('info-guilds', String(s.guilds ?? '—'));
+    set('info-users',  s.users?.toLocaleString('de-DE') ?? '—');
+    // Uptime formatieren
+    if (s.uptime) {
+      const d = Math.floor(s.uptime / 86400);
+      const h = Math.floor((s.uptime % 86400) / 3600);
+      const m = Math.floor((s.uptime % 3600) / 60);
+      set('info-uptime', [d&&`${d}d`, h&&`${h}h`, `${m}m`].filter(Boolean).join(' '));
+    }
+  } catch { /* ignore */ }
+}
+
+async function loadGuilds() {
+  try {
+    const guilds = await apiFetch('GET', '/api/bot/guilds');
+    const container = document.getElementById('guild-list-mini')!;
+    container.innerHTML = guilds.slice(0, 5).map((g: any) => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--bg-raised);border-radius:6px;border:1px solid var(--border);">
+        <span style="font-size:13px;font-weight:500;">${g.name}</span>
+        <button class="btn btn-ghost btn-sm" onclick="selectGuild('${g.id}')">Wählen</button>
+      </div>
+    `).join('');
+  } catch { /* ignore */ }
+}
+
+(window as any).selectGuild = (guildId: string) => {
+  document.cookie = `selectedGuild=${guildId};path=/;max-age=${60*60*24}`;
+  window.location.href = '/';
+};
+
+function initInvite() {
+  const cid = (window as any).__CLIENT_ID__ || '';
+  const url = cid
+    ? `https://discord.com/oauth2/authorize?client_id=${cid}&permissions=8&scope=bot%20applications.commands`
+    : null;
+
+  const display = document.getElementById('invite-url-display');
+  const link    = document.getElementById('invite-link') as HTMLAnchorElement;
+
+  if (url) {
+    if (display) display.textContent = url;
+    if (link)    link.href = url;
+  } else {
+    if (display) display.textContent = 'PUBLIC_DISCORD_CLIENT_ID in .env setzen';
+    if (link)    { link.style.opacity = '0.4'; link.style.pointerEvents = 'none'; }
+  }
+}
+
+(window as any).copyInvite = () => {
+  const url = (document.getElementById('invite-url-display') as HTMLElement)?.textContent;
+  if (url && !url.includes('.env')) {
+    navigator.clipboard.writeText(url).then(() => toast('Link kopiert!', 'success'));
+  }
+};
+
+(window as any).confirmAction = async (action: string) => {
+  const messages: Record<string,string> = {
+    closeAllTickets: 'Alle offenen Tickets wirklich schließen?',
+    leaveGuild:      'Bot wirklich vom Server entfernen? Diese Aktion kann nicht rückgängig gemacht werden!',
+  };
+
+  if (!confirm(messages[action] || 'Wirklich ausführen?')) return;
+
+  try {
+    if (action === 'closeAllTickets') {
+      await apiFetch('POST', `/api/guild/${GUILD()}/close-all-tickets`, {});
+      toast('Alle Tickets wurden geschlossen!', 'success');
+    }
+    if (action === 'leaveGuild') {
+      await apiFetch('POST', `/api/guild/${GUILD()}/leave`, {});
+      toast('Bot verlässt den Server...', 'info');
+      setTimeout(() => window.location.href = '/guild', 2000);
+    }
+  } catch (e: any) { toast(e.message, 'error'); }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadBotInfo();
+  loadGuilds();
+  initInvite();
+});
+</script>
+</body>
+</html>

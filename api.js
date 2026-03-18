@@ -268,6 +268,115 @@ app.get('/api/guild/:guildId/roles', requireAuth, async (req, res) => {
   }
 });
 
+
+// ==================== MEMBERS ====================
+
+app.get('/api/guild/:guildId/members', requireAuth, async (req, res) => {
+  if (!botClient) return res.json([]);
+  try {
+    const guild   = botClient.guilds.cache.get(req.params.guildId);
+    if (!guild) return res.json([]);
+    const members = await guild.members.fetch();
+    res.json(members.map(m => ({
+      id:       m.id,
+      username: m.user.username,
+      nickname: m.nickname,
+      avatar:   m.user.displayAvatarURL(),
+      roles:    m.roles.cache.filter(r => r.id !== guild.id).map(r => r.name),
+      joinedAt: m.joinedTimestamp,
+    })));
+  } catch (e) { res.json([]); }
+});
+
+app.get('/api/guild/:guildId/member/:userId', requireAuth, async (req, res) => {
+  if (!botClient) return res.status(503).json({ error: 'Bot nicht verfügbar' });
+  try {
+    const guild  = botClient.guilds.cache.get(req.params.guildId);
+    if (!guild) return res.status(404).json({ error: 'Guild nicht gefunden' });
+    const member = await guild.members.fetch(req.params.userId);
+    res.json({
+      id:       member.id,
+      username: member.user.username,
+      nickname: member.nickname,
+      avatar:   member.user.displayAvatarURL(),
+      roles:    member.roles.cache.filter(r => r.id !== guild.id).map(r => r.name),
+      joinedAt: member.joinedTimestamp,
+    });
+  } catch (e) { res.status(404).json({ error: 'Nutzer nicht gefunden' }); }
+});
+
+app.post('/api/guild/:guildId/member/:userId/ban', requireAuth, async (req, res) => {
+  if (!botClient) return res.status(503).json({ error: 'Bot nicht verfügbar' });
+  try {
+    const guild = botClient.guilds.cache.get(req.params.guildId);
+    if (!guild) return res.status(404).json({ error: 'Guild nicht gefunden' });
+    await guild.members.ban(req.params.userId, { reason: req.body.reason || 'Dashboard Aktion' });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/guild/:guildId/member/:userId/kick', requireAuth, async (req, res) => {
+  if (!botClient) return res.status(503).json({ error: 'Bot nicht verfügbar' });
+  try {
+    const guild  = botClient.guilds.cache.get(req.params.guildId);
+    if (!guild) return res.status(404).json({ error: 'Guild nicht gefunden' });
+    const member = await guild.members.fetch(req.params.userId);
+    await member.kick(req.body.reason || 'Dashboard Aktion');
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/guild/:guildId/member/:userId/role', requireAuth, async (req, res) => {
+  if (!botClient) return res.status(503).json({ error: 'Bot nicht verfügbar' });
+  try {
+    const { roleId, action } = req.body;
+    const guild  = botClient.guilds.cache.get(req.params.guildId);
+    if (!guild) return res.status(404).json({ error: 'Guild nicht gefunden' });
+    const member = await guild.members.fetch(req.params.userId);
+    if (action === 'add')    await member.roles.add(roleId);
+    if (action === 'remove') await member.roles.remove(roleId);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================== TRANSCRIPTS ====================
+
+app.get('/api/transcripts/:guildId', requireAuth, (req, res) => {
+  const data = loadJson(path.join(DATA_DIR, 'transcripts.json'));
+  const list = Object.values(data[req.params.guildId] || {});
+  list.sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0));
+  res.json(list);
+});
+
+app.get('/api/transcripts/:guildId/:ticketNumber', requireAuth, (req, res) => {
+  const data       = loadJson(path.join(DATA_DIR, 'transcripts.json'));
+  const guildData  = data[req.params.guildId] || {};
+  const transcript = Object.values(guildData).find(t => String(t.ticketNumber) === req.params.ticketNumber);
+  if (!transcript) return res.status(404).json({ error: 'Transcript nicht gefunden' });
+  res.json(transcript);
+});
+
+// ==================== GUILD ACTIONS ====================
+
+app.post('/api/guild/:guildId/close-all-tickets', requireAuth, (req, res) => {
+  const config = loadJson(path.join(DATA_DIR, 'tickets.json'));
+  if (config[req.params.guildId]) {
+    config[req.params.guildId].activeTickets = {};
+    saveJson(path.join(DATA_DIR, 'tickets.json'), config);
+  }
+  res.json({ success: true });
+});
+
+app.post('/api/guild/:guildId/leave', requireAuth, async (req, res) => {
+  if (!botClient) return res.status(503).json({ error: 'Bot nicht verfügbar' });
+  try {
+    const guild = botClient.guilds.cache.get(req.params.guildId);
+    if (!guild) return res.status(404).json({ error: 'Guild nicht gefunden' });
+    await guild.leave();
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ==================== HEALTH CHECK ====================
 
 app.get('/api/health', (req, res) => {

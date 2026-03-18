@@ -11,31 +11,49 @@
  */
 
 const { Player } = require('discord-player');
-const { YoutubeiExtractor } = require('@discord-player/extractor');
 const { EmbedBuilder } = require('discord.js');
 
 async function setupMusic(client) {
-  const player = new Player(client, {
-    ytdlOptions: {
-      quality:       'highestaudio',
-      highWaterMark: 1 << 25,
-    },
-  });
+  const player = new Player(client);
 
-  // YouTube Extractor registrieren (youtubei - kein API-Key nötig!)
-  await player.extractors.register(YoutubeiExtractor, {});
-
-  // Spotify wird über ytdl als YouTube-Suche umgewandelt
-  // (kein direktes Streaming, nur Suche nach Titel)
+  // Extractors laden - DefaultExtractors ist ein Objekt, wir brauchen die Werte als Array
   try {
-    const { SpotifyExtractor } = require('@discord-player/extractor');
-    await player.extractors.register(SpotifyExtractor, {
-      clientId:     process.env.SPOTIFY_CLIENT_ID     || '',
-      clientSecret: process.env.SPOTIFY_CLIENT_SECRET || '',
-    });
-    console.log('[Music] Spotify Extractor geladen');
-  } catch {
-    console.log('[Music] Spotify Extractor nicht verfügbar (optional)');
+    const extractorModule = require('@discord-player/extractor');
+    const { DefaultExtractors } = extractorModule;
+
+    // Object.values() weil DefaultExtractors numerische Keys hat
+    const extractorList = Object.values(DefaultExtractors);
+    await player.extractors.loadMulti(extractorList);
+    console.log('[Music] ' + extractorList.length + ' Extractors geladen');
+  } catch (e) {
+    console.error('[Music] loadMulti fehlgeschlagen, versuche einzeln:', e.message);
+    // Fallback: jeden Extractor einzeln registrieren
+    try {
+      const extractorModule = require('@discord-player/extractor');
+      const { DefaultExtractors } = extractorModule;
+      for (const extractor of Object.values(DefaultExtractors)) {
+        try {
+          await player.extractors.register(extractor, {});
+        } catch { /* einzelne ignorieren */ }
+      }
+      console.log('[Music] Extractors einzeln geladen');
+    } catch (e2) {
+      console.error('[Music] Extractor-Fehler:', e2.message);
+    }
+  }
+
+  // Spotify optional
+  if (process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET) {
+    try {
+      const { SpotifyExtractor } = require('@discord-player/extractor');
+      await player.extractors.register(SpotifyExtractor, {
+        clientId:     process.env.SPOTIFY_CLIENT_ID,
+        clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+      });
+      console.log('[Music] Spotify Extractor geladen');
+    } catch {
+      console.log('[Music] Spotify Extractor nicht verfügbar');
+    }
   }
 
   // ── Player Events ──────────────────────────────────────────────────────
