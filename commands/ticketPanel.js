@@ -634,6 +634,43 @@ module.exports = {
         }
       }
 
+      // ── Transcript in Datei speichern ──────────────────────────────────
+      try {
+        const transcriptPath = path.join(process.cwd(), "data", "transcripts.json");
+        const transcripts = fs.existsSync(transcriptPath)
+          ? JSON.parse(fs.readFileSync(transcriptPath, "utf-8"))
+          : {};
+
+        if (!transcripts[interaction.guild.id]) transcripts[interaction.guild.id] = {};
+
+        transcripts[interaction.guild.id][ticket.ticketNumber] = {
+          ticketNumber: ticket.ticketNumber,
+          userId:       ticket.userId,
+          username:     interaction.guild.members.cache.get(ticket.userId)?.user?.username || ticket.userId,
+          category:     ticket.category,
+          categoryLabel: ticket.categoryLabel,
+          guildId:      interaction.guild.id,
+          createdAt:    ticket.createdAt,
+          closedAt:     Date.now(),
+          closedBy:     getUserDisplay(interaction.user),
+          closedById:   interaction.user.id,
+          messageCount: messages.length,
+          messages:     messages.slice(0, 100).map(m => ({
+            id:        m.id,
+            userId:    m.author.id,
+            username:  getUserDisplay(m.author),
+            content:   m.content || "",
+            timestamp: m.createdTimestamp,
+            attachments: [...m.attachments.values()].map(a => ({ name: a.name, url: a.url })),
+          })),
+        };
+
+        fs.writeFileSync(transcriptPath, JSON.stringify(transcripts, null, 2));
+        console.log("[Ticket] Transcript gespeichert: #" + ticketNum);
+      } catch (e) {
+        console.error("[Ticket] Transcript-Speichern Fehler:", e.message);
+      }
+
       // ── Config aktualisieren & Channel loeschen ─────────────────────────
       delete guildConfig.activeTickets[channelId];
       config[interaction.guild.id] = guildConfig;

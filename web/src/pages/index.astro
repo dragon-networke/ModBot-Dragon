@@ -4,7 +4,9 @@ import '../styles/global.css';
 const API_URL   = import.meta.env.PUBLIC_API_URL   || 'http://localhost:3001';
 const API_TOKEN = import.meta.env.PUBLIC_API_TOKEN || '';
 const CLIENT_ID = import.meta.env.PUBLIC_DISCORD_CLIENT_ID || '';
-const GUILD_ID  = '';
+const selectedGuild = Astro.cookies.get('selectedGuild')?.value || '';
+if (!selectedGuild) return Astro.redirect('/guild');
+const GUILD_ID = selectedGuild;
 
 const logConfig = [
   { label: 'Nachrichten gelöscht',   sub: 'MessageDelete',         on: true  },
@@ -121,10 +123,7 @@ const logConfig = [
         <span class="crumb-active">Übersicht</span>
       </div>
       <div class="topbar-right">
-        <select id="guild-select" style="background:var(--bg-raised);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text-primary);font-family:var(--font-mono);font-size:11px;outline:none;max-width:160px;">
-          <option value="">Server wählen...</option>
-        </select>
-        <div class="status-chip" id="bot-status-chip" style="color:var(--text-muted);background:var(--bg-raised);border:1px solid var(--border);">
+<div class="status-chip" id="bot-status-chip" style="color:var(--text-muted);background:var(--bg-raised);border:1px solid var(--border);">
           ● LÄDT...
         </div>
         <div class="ping-chip" id="ping-display">—</div>

@@ -207,7 +207,7 @@ module.exports = {
 
         const embed = new EmbedBuilder()
           .setColor(0x3b82f6)
-          .setThumbnail(track.thumbnail)
+          .setThumbnail(track.thumbnail?.startsWith('http') ? track.thumbnail : null)
           .setFooter({ text: `Angefragt von ${interaction.user.username}` })
           .setTimestamp();
 
@@ -314,7 +314,7 @@ module.exports = {
           new EmbedBuilder()
             .setTitle('🎵 Spielt gerade')
             .setDescription(`**[${track.title}](${track.url})**\nvon ${track.author}`)
-            .setThumbnail(track.thumbnail)
+            .setThumbnail(track.thumbnail?.startsWith('http') ? track.thumbnail : null)
             .setColor(0x3b82f6)
             .addFields(
               { name: 'Fortschritt', value: `\`${formatDuration(curr)}\` ${progressBar(curr, tot)} \`${formatDuration(tot)}\``, inline: false },

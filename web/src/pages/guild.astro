@@ -144,6 +144,7 @@ if (Astro.request.method === 'POST') {
       background: radial-gradient(circle at 50% 0%, rgba(59,130,246,0.1), transparent 60%);
       opacity: 0;
       transition: opacity 0.2s;
+      pointer-events: none;
     }
 
     .guild-card:hover {
@@ -250,10 +251,7 @@ if (Astro.request.method === 'POST') {
             </div>
             <div class="guild-name">{g.name}</div>
             <div class="guild-id">{g.id}</div>
-            <form method="POST">
-              <input type="hidden" name="guildId" value={g.id}/>
-              <button type="submit" class="guild-btn">Verwalten →</button>
-            </form>
+            <button class="guild-btn" onclick={`selectGuild('${g.id}')`}>Verwalten →</button>
           </div>
         ))}
       </div>
@@ -265,5 +263,11 @@ if (Astro.request.method === 'POST') {
       </div>
     )}
   </div>
+<script is:inline>
+function selectGuild(guildId) {
+  document.cookie = "selectedGuild=" + guildId + ";path=/;max-age=" + (60 * 60 * 24);
+  window.location.href = "/";
+}
+</script>
 </body>
 </html>

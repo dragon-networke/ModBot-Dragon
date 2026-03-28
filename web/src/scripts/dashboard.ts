@@ -269,7 +269,10 @@ async function loadChannelsAndRoles() {
     fillSelect('ticket-category-select',    categories,    'Kategorie wählen...');
 
     // Rollen-Dropdowns befüllen
-    fillSelect('support-role-select', roles, 'Support-Rolle wählen...');
+    fillSelect('support-role-select',       roles,        'Support-Rolle wählen...');
+    fillSelect('appeal-channel-select',     textChannels, 'Appeal-Channel wählen...');
+    fillSelect('voice-channel-select',      textChannels, 'Voice-Channel wählen...');
+    fillSelect('voice-category-select',     categories,   'Kategorie wählen...');
 
     // Commands-Sektion: Rollen-Selects aktualisieren
     document.querySelectorAll<HTMLSelectElement>('[id^="cmd-role-select-"]').forEach(sel => {
@@ -424,6 +427,7 @@ function initNav() {
         loadChannelsAndRoles();
       }
       if (section === 'antinuke') loadAntiNukeConfig();
+      if (section === 'appeals') { loadAppeals(); loadAppealConfig(); loadChannelsAndRoles(); }
       if (section === 'voice')    loadVoiceConfig();
     });
   });
@@ -501,6 +505,131 @@ function esc(s: string): string {
 function empty(msg: string): string {
   return `<div style="padding:24px;text-align:center;color:var(--text-muted);font-family:var(--font-mono);font-size:12px;">${msg}</div>`;
 }
+
+
+// ── Appeals ────────────────────────────────────────────────────────────────
+
+let allAppeals: any[] = [];
+
+async function loadAppeals(statusFilter = '') {
+  const guildId = getGuildId();
+  if (!guildId) return;
+
+  const container = document.getElementById('appeals-list');
+  const badge     = document.getElementById('appeals-count-badge');
+
+  try {
+    const path = statusFilter
+      ? `/api/appeals/${guildId}?status=${statusFilter}`
+      : `/api/appeals/${guildId}`;
+
+    allAppeals = await GET(path);
+    if (badge) badge.textContent = `${allAppeals.length} Appeals`;
+
+    if (!container) return;
+    if (!allAppeals.length) { container.innerHTML = empty('Keine Appeals gefunden'); return; }
+
+    const colors: Record<string,string> = { pending:'#f59e0b', accepted:'#22c55e', denied:'#ef4444' };
+    const labels: Record<string,string> = { pending:'⏳ Ausstehend', accepted:'✅ Angenommen', denied:'❌ Abgelehnt' };
+
+    container.innerHTML = allAppeals.map((a: any) => {
+      const color = colors[a.status] || colors.pending;
+      const label = labels[a.status] || labels.pending;
+      const date  = new Date(a.createdAt).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      return `
+        <div style="border-bottom:1px solid var(--border);padding:16px 18px;" id="appeal-row-${a.id}">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-family:var(--font-mono);font-size:10px;padding:3px 8px;border-radius:4px;background:${color}18;color:${color};border:1px solid ${color}33;">${label}</span>
+              <span style="font-weight:600;font-size:13px;">${esc(a.username)}</span>
+              <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">${a.userId}</span>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);white-space:nowrap;">${date}</span>
+          </div>
+          <div style="cursor:pointer;font-size:12px;color:var(--blue);margin-bottom:6px;" onclick="toggleAppeal('${a.id}')">Details ▼</div>
+          <div id="appeal-detail-${a.id}" style="display:none;flex-direction:column;gap:8px;">
+            <div style="background:var(--bg-raised);border-radius:6px;padding:12px;">
+              <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px;">Was passiert?</div>
+              <div style="font-size:13px;line-height:1.5;">${esc(a.reason)}</div>
+            </div>
+            <div style="background:var(--bg-raised);border-radius:6px;padding:12px;">
+              <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px;">Argumente</div>
+              <div style="font-size:13px;line-height:1.5;">${esc(a.argument)}</div>
+            </div>
+            <div style="background:var(--bg-raised);border-radius:6px;padding:12px;">
+              <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px;">Versprechen</div>
+              <div style="font-size:13px;line-height:1.5;">${esc(a.promise)}</div>
+            </div>
+            ${a.reviewNote ? `<div style="background:var(--bg-raised);border-radius:6px;padding:12px;border-left:3px solid ${color};"><div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px;">Entscheidungs-Notiz</div><div style="font-size:13px;line-height:1.5;">${esc(a.reviewNote)}</div></div>` : ''}
+            ${a.status === 'pending' ? `
+            <textarea id="note-${a.id}" placeholder="Notiz / Begründung..." style="width:100%;background:var(--bg-raised);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text-primary);font-size:12px;outline:none;resize:vertical;min-height:60px;font-family:var(--font-sans);"></textarea>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary btn-sm" onclick="reviewAppeal('${a.id}','accepted')">✅ Annehmen</button>
+              <button class="btn btn-danger btn-sm"  onclick="reviewAppeal('${a.id}','denied')">❌ Ablehnen</button>
+              <button class="btn btn-ghost btn-sm"   onclick="reviewAppeal('${a.id}','pending')">⏳ In Bearbeitung</button>
+              <button class="btn btn-ghost btn-sm" style="margin-left:auto;color:var(--text-muted);" onclick="deleteAppeal('${a.id}')">🗑️</button>
+            </div>` : `<div style="display:flex;justify-content:flex-end;"><button class="btn btn-ghost btn-sm" style="color:var(--text-muted);" onclick="deleteAppeal('${a.id}')">🗑️ Löschen</button></div>`}
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e: any) {
+    if (container) container.innerHTML = `<div style="padding:24px;color:var(--red);font-family:var(--font-mono);font-size:12px;">Fehler: ${e.message}</div>`;
+  }
+}
+
+async function loadAppealConfig() {
+  const guildId = getGuildId();
+  if (!guildId) return;
+  try {
+    const cfg = await GET(`/api/config/appeal/${guildId}`);
+    if (!cfg) return;
+    setVal('appeal-channel-id', cfg.appealChannelId || '');
+  } catch { /* ignore */ }
+}
+
+(window as any).toggleAppeal = (id: string) => {
+  const el = document.getElementById(`appeal-detail-${id}`);
+  if (!el) return;
+  const show = el.style.display === 'none';
+  el.style.display = show ? 'flex' : 'none';
+  if (show) { el.style.flexDirection = 'column'; el.style.gap = '8px'; }
+};
+
+(window as any).filterAppeals = (status: string) => loadAppeals(status);
+
+(window as any).reviewAppeal = async (appealId: string, status: string) => {
+  const guildId = getGuildId();
+  const note    = (document.getElementById(`note-${appealId}`) as HTMLTextAreaElement)?.value || '';
+  try {
+    await api('PATCH', `/api/appeals/${guildId}/${appealId}`, { status, reviewNote: note });
+    toast(`Appeal ${status === 'accepted' ? 'angenommen' : status === 'denied' ? 'abgelehnt' : 'aktualisiert'}!`, 'success');
+    loadAppeals((document.getElementById('appeal-filter') as HTMLSelectElement)?.value || '');
+  } catch (e: any) { toast(e.message, 'error'); }
+};
+
+(window as any).deleteAppeal = async (appealId: string) => {
+  if (!confirm('Appeal wirklich löschen?')) return;
+  const guildId = getGuildId();
+  try {
+    await api('DELETE', `/api/appeals/${guildId}/${appealId}`);
+    document.getElementById(`appeal-row-${appealId}`)?.remove();
+    toast('Appeal gelöscht', 'success');
+  } catch (e: any) { toast(e.message, 'error'); }
+};
+
+// Appeal Config speichern
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('save-appeal-config-btn')?.addEventListener('click', async () => {
+    const guildId = getGuildId();
+    if (!guildId) return toast('Bitte zuerst einen Server auswählen', 'error');
+    try {
+      await PUT(`/api/config/appeal/${guildId}`, {
+        appealChannelId: val('appeal-channel-id') || val('appeal-channel-select') || null,
+      });
+      toast('Appeal-Config gespeichert!', 'success');
+    } catch (e: any) { toast(e.message, 'error'); }
+  });
+});
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 
