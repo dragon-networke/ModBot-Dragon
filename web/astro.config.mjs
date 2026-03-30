@@ -1,13 +1,11 @@
 import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
-
-const adapter = process.env.VERCEL
-  ? (await import('@astrojs/vercel/serverless')).default
-  : (await import('@astrojs/node')).default({ mode: 'standalone' });
+import node from '@astrojs/node';
+import vercel from '@astrojs/vercel';
 
 export default defineConfig({
   output: 'server',
-  adapter,
+  adapter: process.env.VERCEL ? vercel() : node({ mode: 'standalone' }),
   vite: {
     plugins: [tailwindcss()],
   },
