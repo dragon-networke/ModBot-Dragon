@@ -18,6 +18,7 @@ const error        = Astro.url.searchParams.get('error');
 
 const oauthUrl = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify+guilds`;
 ---
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -70,17 +71,16 @@ const oauthUrl = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&re
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    .logo {
-      width: 72px;
-      height: 72px;
-      background: linear-gradient(135deg, #1d4ed8, #3b82f6);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 32px;
+    .dragon-logo {
+      width: 220px;
+      height: auto;
       margin: 0 auto 24px;
-      box-shadow: 0 0 40px rgba(59,130,246,0.3);
+      filter: drop-shadow(0 0 35px rgba(239, 68, 68, 0.6));
+      transition: transform 0.3s ease;
+    }
+
+    .dragon-logo:hover {
+      transform: scale(1.03);
     }
 
     h1 {
@@ -179,7 +179,13 @@ const oauthUrl = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&re
 </head>
 <body>
   <div class="card">
-    <div class="logo">🐉</div>
+    <!-- DRACHEN LOGO -->
+    <img 
+      src="/images/dragon-logo.png" 
+      alt="Dragon Network Logo" 
+      class="dragon-logo"
+    >
+
     <div class="sub">v2.4.1 · Dashboard</div>
     <h1>ModBot Dragon</h1>
     <p>Melde dich mit deinem Discord-Account an um das Dashboard zu öffnen. Du benötigst Administrator-Rechte auf mindestens einem Server.</p>

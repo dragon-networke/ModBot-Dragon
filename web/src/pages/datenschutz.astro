@@ -1,0 +1,87 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Datenschutz | ModBot Dragon">
+  <div class="min-h-screen bg-[#060709] p-6">
+    <div class="max-w-4xl mx-auto">
+      
+      <!-- Header -->
+      <div class="mb-10">
+        <h1 class="text-4xl font-bold text-white mb-2">Datenschutzerklärung</h1>
+        <p class="text-zinc-400">Stand: 30. März 2026</p>
+      </div>
+
+      <!-- Haupt-Card -->
+      <div class="bg-[#0f1117] border border-zinc-800 rounded-2xl p-10 text-zinc-300 leading-relaxed space-y-10">
+
+        <section>
+          <h2 class="text-2xl font-semibold text-white mb-4">1. Verantwortlicher</h2>
+          <p class="text-zinc-400">
+            ModBot Dragon<br>
+            Jeremy Malik Klampt<br>
+            Hagenerstraße 26<br>
+            29365 Sprakensehl<br>
+            Deutschland
+          </p>
+          <p class="mt-3">
+            E-Mail: <a href="mailto:wulfghg@gmail.com" class="text-blue-400 hover:underline">wulfghg@gmail.com</a>
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold text-white mb-4">2. Welche Daten wir erheben</h2>
+          <p>Bei der Nutzung des Dashboards werden folgende personenbezogenen Daten verarbeitet:</p>
+          <ul class="list-disc list-inside space-y-2 mt-4 text-zinc-400">
+            <li>Discord User-ID</li>
+            <li>Discord-Benutzername und Avatar</li>
+            <li>Liste der Discord-Server, auf denen du Administrator bist</li>
+            <li>Session-Cookie zur Authentifizierung</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold text-white mb-4">3. Zweck der Datenverarbeitung</h2>
+          <p>Die Daten werden ausschließlich für folgende Zwecke verwendet:</p>
+          <ul class="list-disc list-inside space-y-2 mt-4 text-zinc-400">
+            <li>Authentifizierung und Zugriffssteuerung auf das Dashboard</li>
+            <li>Anzeige deiner Server und Berechtigungen</li>
+            <li>Bereitstellung der Bot-Verwaltungsfunktionen</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold text-white mb-4">4. Rechtsgrundlage</h2>
+          <p>Die Verarbeitung erfolgt auf Grundlage von Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) sowie deinem Einverständnis durch die Discord-Anmeldung.</p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold text-white mb-4">5. Speicherdauer</h2>
+          <p>Deine Session wird nach 24 Stunden automatisch gelöscht. Andere Daten (wie Server-Liste) werden nur während der aktiven Sitzung im Arbeitsspeicher gehalten.</p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold text-white mb-4">6. Deine Rechte</h2>
+          <p>Du hast jederzeit das Recht auf:</p>
+          <ul class="list-disc list-inside space-y-2 mt-4 text-zinc-400">
+            <li>Auskunft über deine gespeicherten Daten</li>
+            <li>Berichtigung oder Löschung deiner Daten</li>
+            <li>Widerspruch gegen die Verarbeitung</li>
+          </ul>
+          <p class="mt-6">Schreibe uns einfach eine E-Mail an die oben genannte Adresse.</p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold text-white mb-4">7. Cookies</h2>
+          <p>Wir verwenden ein httpOnly-Session-Cookie namens „session“. Dieses Cookie enthält keine personenbezogenen Daten in Klartext und wird nach 24 Stunden automatisch gelöscht.</p>
+        </section>
+
+      </div>
+
+      <!-- Footer-Hinweis -->
+      <div class="mt-12 text-center text-xs text-zinc-500">
+        ModBot Dragon Dashboard • Letzte Aktualisierung: 30. März 2026
+      </div>
+    </div>
+  </div>
+</Layout>
