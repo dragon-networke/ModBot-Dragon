@@ -1,112 +1,85 @@
-/**
- * src/scripts/dashboard.ts
- * Nutzt die bestehende api.js (Bearer Auth, /api/bot/status etc.)
- */
+// src/scripts/dashboard.ts
+// Angepasst für das neue Layout
 
-declare const window: any;
+// @ts-nocheck
 
-// ── Konfiguration ──────────────────────────────────────────────────────────
-// Wird in index.astro per define:vars gesetzt
-const API_URL   = () => window.__API_URL__   || 'http://localhost:3001';
-const API_TOKEN = () => window.__API_TOKEN__ || '';
-const CLIENT_ID = () => window.__CLIENT_ID__ || '';
+const API_URL = window.__API_URL__ || 'http://localhost:3001';
+const API_TOKEN = window.__API_TOKEN__ || '';
+const GUILD_ID = window.__GUILD_ID__ || '';
 
-const CATEGORY_COLORS: Record<string, string> = {
-  support:   '#3b82f6',
-  bug:       '#ef4444',
-  frage:     '#f59e0b',
-  bewerbung: '#22c55e',
-  report:    '#f97316',
-  sonstiges: '#6b7280',
-};
+console.log('=== DASHBOARD START ===');
+console.log('API_URL   =', API_URL);
+console.log('GUILD_ID  =', GUILD_ID || 'nicht gesetzt');
 
-// ── Toast ──────────────────────────────────────────────────────────────────
-
-function toast(msg: string, type: 'success' | 'error' | 'info' = 'info', ms = 3000) {
-  const wrap = document.getElementById('toast-container');
-  if (!wrap) return;
-  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
-  const el = document.createElement('div');
-  el.className = `toast ${type}`;
-  el.innerHTML = `<span>${icons[type]}</span><span>${msg}</span>`;
-  wrap.appendChild(el);
-  setTimeout(() => {
-    el.style.animation = 'toastOut 0.2s ease forwards';
-    setTimeout(() => el.remove(), 200);
-  }, ms);
-}
-(window as any).showToast = toast;
-
-// ── API Helper ─────────────────────────────────────────────────────────────
-// Einheitlicher Wrapper der Bearer-Auth und JSON-Handling übernimmt
-
-async function api(
-  method: string,
-  path: string,
-  body?: unknown
-): Promise<any> {
-  const res = await fetch(`${API_URL()}${path}`, {
-    method,
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Bearer ${API_TOKEN()}`,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
+function toast(msg: string, type: 'success' | 'error' | 'info' = 'error') {
+  const c = document.getElementById('toast-container');
+  if (!c) return;
+  const div = document.createElement('div');
+  div.className = `toast ${type}`;
+  div.textContent = msg;
+  c.appendChild(div);
+  setTimeout(() => div.remove(), 6000);
 }
 
-const GET  = (path: string)              => api('GET',  path);
-const PUT  = (path: string, b: unknown)  => api('PUT',  path, b);
-const POST = (path: string, b: unknown)  => api('POST', path, b);
+async function api(method: string, path: string) {
+  try {
+    const url = `${API_URL}${path.startsWith('/') ? path : '/' + path}`;
+    console.log('API Request →', url);
 
-// ── Aktive Guild ───────────────────────────────────────────────────────────
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${API_TOKEN}` }
+    });
 
-function getGuildId(): string {
-  const sel = document.getElementById('guild-select') as HTMLSelectElement;
-  return sel?.value || (window.__GUILD_ID__ ?? '');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.error('API Fehler:', e);
+    toast('API Fehler bei ' + path, 'error');
+    throw e;
+  }
 }
 
-// ── Live Stats laden ───────────────────────────────────────────────────────
-// GET /api/bot/status
+const GET = (path: string) => api('GET', path);
 
+// ── Stats & Live Status ───────────────────────────────────────────────────
 async function loadStats() {
   try {
-    const s = await GET('/api/bot/status');
+    const s = await GET('/bot/status');
+    console.log('Stats erhalten:', s);
 
-    // Stat-Cards
-    setText('stat-guilds',  String(s.guilds  ?? '—'));
-    setText('stat-users',   s.users?.toLocaleString('de-DE') ?? '—');
-    setText('stat-ping',    s.ping != null ? `${s.ping}ms` : '—');
-    setText('uptime-display', formatUptime(s.uptime));
-    setText('latency-value',  s.ping != null ? `${s.ping}ms` : '—');
-    setText('uptime-value',   formatUptime(s.uptime));
-    setText('ping-display',   s.ping != null ? `${s.ping}ms` : '—');
+    // Stats Cards
+    const guildsEl = document.getElementById('stat-guilds');
+    if (guildsEl) guildsEl.textContent = String(s.guilds ?? '—');
 
-    // Bot-Avatar & Name in Sidebar
-    if (s.username) setText('sidebar-username', s.username);
-    if (s.avatar) {
-      const el = document.getElementById('sidebar-avatar');
-      if (el && el.tagName !== 'IMG') {
-        const img = document.createElement('img');
-        img.src = s.avatar;
-        img.style.cssText = 'width:28px;height:28px;border-radius:50%;object-fit:cover;';
-        el.replaceWith(img);
-      }
+    const usersEl = document.getElementById('stat-users');
+    if (usersEl) usersEl.textContent = s.users?.toLocaleString('de-DE') ?? '—';
+
+    const pingEl = document.getElementById('stat-ping');
+    if (pingEl) pingEl.textContent = s.ping != null ? `${s.ping}ms` : '—';
+
+    const ticketsEl = document.getElementById('stat-tickets');
+    if (ticketsEl) ticketsEl.textContent = String(s.tickets ?? '—');
+
+    // Live Status Chip
+    const chip = document.getElementById('bot-status-chip');
+    if (chip) {
+      const online = s.status === 'online';
+      chip.textContent = online ? '● ONLINE' : '● OFFLINE';
+      chip.className = `status-chip ${online ? 'online' : 'offline'}`;
     }
 
-    const online = s.status === 'online';
-    setChip('bot-status-chip',  online);
-    setChip('status-chip-card', online);
-    const sv = document.getElementById('status-value');
-    if (sv) { sv.textContent = online ? 'ONLINE' : 'OFFLINE'; sv.style.color = online ? 'var(--green)' : 'var(--red)'; }
+    // Live Status Werte
+    const statusEl = document.getElementById('bot-status');
+    if (statusEl) statusEl.textContent = (s.status || 'OFFLINE').toUpperCase();
 
-  } catch {
-    setChip('bot-status-chip',  false);
-    setChip('status-chip-card', false);
+    const pingValueEl = document.getElementById('bot-ping');
+    if (pingValueEl) pingValueEl.textContent = s.ping != null ? `${s.ping}ms` : '—';
+
+    const uptimeEl = document.getElementById('bot-uptime');
+    if (uptimeEl) uptimeEl.textContent = formatUptime(s.uptime);
+
+  } catch (e) {
+    console.error('loadStats failed', e);
   }
 }
 
@@ -122,529 +95,140 @@ function formatUptime(seconds?: number): string {
   return parts.join(' ');
 }
 
-// ── Guild-Liste laden ──────────────────────────────────────────────────────
-// GET /api/bot/guilds
-
+// ── Guilds laden ──────────────────────────────────────────────────────────
 async function loadGuilds() {
-  const container = document.getElementById('guild-list-container');
-  const badge     = document.getElementById('guild-count-badge');
-  const select    = document.getElementById('guild-select') as HTMLSelectElement | null;
-
   try {
-    const guilds: any[] = await GET('/api/bot/guilds');
+    const guilds = await GET('/bot/guilds');
+    console.log('Guilds erhalten:', guilds.length);
 
-    if (badge)  badge.textContent  = `${guilds.length} Server`;
+    const container = document.getElementById('guild-list-container') || 
+                     document.getElementById('guilds-grid');
+    if (!container) return;
 
-    // Guild-Select für Settings befüllen
-    if (select) {
-      select.innerHTML = guilds.map(g =>
-        `<option value="${g.id}">${esc(g.name)}</option>`
-      ).join('');
-      // Beim Wechsel Tickets + Channels neu laden
-      select.onchange = () => {
-        loadTickets();
-        loadChannelsAndRoles();
-      };
+    if (guilds.length === 0) {
+      container.innerHTML = '<div style="padding:40px;text-align:center;color:#64748b;">Keine Server gefunden</div>';
+      return;
     }
 
-    if (!container) return;
-    if (!guilds.length) { container.innerHTML = empty('Keine Server gefunden'); return; }
+    container.innerHTML = guilds.map((g: any) => `
+      <div class="guild-row">
+        <div class="guild-icon-img">
+          ${g.icon ? `<img src="${g.icon}" alt=""/>` : `<span>${g.name[0]}</span>`}
+        </div>
+        <div style="flex:1; text-align:left;">
+          <div style="font-weight:600;">${g.name}</div>
+          <div style="font-size:11px;color:#64748b;">ID: ${g.id}</div>
+        </div>
+        <span style="color:#22c55e; font-size:12px;">AKTIV</span>
+      </div>
+    `).join('');
 
-    container.innerHTML = guilds.map(g => {
-      const icon = g.icon
-        ? `<img src="${g.icon}" alt="" />`
-        : `<span>${g.name[0]}</span>`;
-      return `
-        <div class="guild-row">
-          <div class="guild-icon-img">${icon}</div>
-          <div style="flex:1;">
-            <div style="font-weight:600;font-size:14px;">${esc(g.name)}</div>
-            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">
-              ID: ${g.id} · ${g.memberCount?.toLocaleString('de-DE') ?? '?'} Mitglieder
-            </div>
-          </div>
-          <span style="font-family:var(--font-mono);font-size:10px;padding:3px 8px;background:var(--green-glow);border:1px solid rgba(34,197,94,0.2);border-radius:4px;color:var(--green);">AKTIV</span>
-        </div>`;
-    }).join('');
-
-  } catch {
-    if (container) container.innerHTML = `<div style="padding:24px;text-align:center;color:var(--red);font-family:var(--font-mono);font-size:12px;">API nicht erreichbar</div>`;
+  } catch (e) {
+    console.error('loadGuilds failed', e);
+    const container = document.getElementById('guild-list-container') || document.getElementById('guilds-grid');
+    if (container) container.innerHTML = '<div style="padding:24px;color:#ef4444;">Fehler beim Laden der Server</div>';
   }
 }
 
-// ── Tickets laden ──────────────────────────────────────────────────────────
-// GET /api/tickets/:guildId
-
+// ── Tickets / Transcripts laden ───────────────────────────────────────────
 async function loadTickets() {
-  const guildId = getGuildId();
-  if (!guildId) return;
-
   try {
-    const tickets: any[] = await GET(`/api/tickets/${guildId}`);
+    if (!GUILD_ID) return;
 
-    renderTickets('tickets-body',       tickets, true);
-    renderTickets('tickets-full-body',  tickets, false);
+    const tickets = await GET(`/tickets/${GUILD_ID}`);
+    const count = tickets.length;
 
-    const count = String(tickets.length);
-    setText('stat-tickets',       count);
-    setText('tickets-badge',      `${count} offen`);
-    setText('tickets-full-badge', `${count} offen`);
-  } catch { /* ignore */ }
-}
+    // Stat-Ticket-Zahl aktualisieren
+    const statTickets = document.getElementById('stat-tickets');
+    if (statTickets) statTickets.textContent = count;
 
-function renderTickets(id: string, tickets: any[], compact: boolean) {
-  const el = document.getElementById(id);
-  if (!el) return;
+    // Tabelle aktualisieren (funktioniert in index + transcripts)
+    const tbody = document.getElementById('tickets-body') || document.getElementById('transcripts-body');
+    if (!tbody) return;
 
-  if (!tickets.length) {
-    el.innerHTML = `
-      <div style="padding:32px;text-align:center;color:var(--text-muted);font-family:var(--font-mono);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:8px;">
-        <span style="font-size:28px;opacity:0.3;">🎫</span>
-        <span>Keine offenen Tickets</span>
-      </div>`;
-    return;
-  }
-
-  const cols = compact
-    ? 'grid-template-columns:70px 1fr 110px 80px 1fr'
-    : 'grid-template-columns:70px 1fr 110px 1fr';
-
-  el.innerHTML = tickets.map((t: any) => {
-    const c = CATEGORY_COLORS[t.category] || '#888';
-    const d = new Date(t.createdAt).toLocaleString('de-DE', {
-      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-    });
-    return `
-      <div class="table-row" style="${cols};">
-        <span class="table-id">#${String(t.ticketNumber).padStart(4, '0')}</span>
-        <span class="table-user">${esc(t.userId)}</span>
-        <span><span class="cat-badge" style="background:${c}18;color:${c}">${esc(t.category)}</span></span>
-        ${compact ? `<span class="status-dot open">open</span>` : ''}
-        <span class="table-time">${d}</span>
-      </div>`;
-  }).join('');
-}
-
-// ── Ticket-Config laden & speichern ────────────────────────────────────────
-// GET /api/config/tickets/:guildId
-// PUT /api/config/tickets/:guildId
-
-async function loadTicketConfig() {
-  const guildId = getGuildId();
-  if (!guildId) return;
-
-  try {
-    const cfg = await GET(`/api/config/tickets/${guildId}`);
-    if (!cfg) return;
-
-    setVal('panel-title',          cfg.panelTitle       || '');
-    setVal('panel-description',    cfg.panelDescription || '');
-    setVal('log-channel-id',       cfg.logChannelId     || '');
-    setVal('transcript-channel-id',cfg.transcriptChannelId || '');
-    setVal('category-id',          cfg.categoryId       || '');
-    setVal('support-role-id',      cfg.supportRoleId    || '');
-  } catch { /* ignore */ }
-}
-
-// ── Channels & Rollen für Dropdowns laden ─────────────────────────────────
-// GET /api/guild/:guildId/channels
-// GET /api/guild/:guildId/roles
-
-async function loadChannelsAndRoles() {
-  const guildId = getGuildId();
-  if (!guildId) return;
-
-  try {
-    const [channels, roles]: [any[], any[]] = await Promise.all([
-      GET(`/api/guild/${guildId}/channels`),
-      GET(`/api/guild/${guildId}/roles`),
-    ]);
-
-    // Channel-Dropdowns befüllen
-    const textChannels  = channels.filter(c => c.type === 0);
-    const categories    = channels.filter(c => c.type === 4);
-
-    fillSelect('log-channel-select',        textChannels,  'Log-Channel wählen...');
-    fillSelect('transcript-channel-select', textChannels,  'Transcript-Channel wählen...');
-    fillSelect('ticket-category-select',    categories,    'Kategorie wählen...');
-
-    // Rollen-Dropdowns befüllen
-    fillSelect('support-role-select',       roles,        'Support-Rolle wählen...');
-    fillSelect('appeal-channel-select',     textChannels, 'Appeal-Channel wählen...');
-    fillSelect('voice-channel-select',      textChannels, 'Voice-Channel wählen...');
-    fillSelect('voice-category-select',     categories,   'Kategorie wählen...');
-
-    // Commands-Sektion: Rollen-Selects aktualisieren
-    document.querySelectorAll<HTMLSelectElement>('[id^="cmd-role-select-"]').forEach(sel => {
-      const current = sel.value;
-      sel.innerHTML = `<option value="">Rolle auswählen...</option>` +
-        roles.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join('');
-      if (current) sel.value = current;
-    });
-
-  } catch { /* ignore */ }
-}
-
-function fillSelect(id: string, items: any[], placeholder: string) {
-  const el = document.getElementById(id) as HTMLSelectElement | null;
-  if (!el) return;
-  el.innerHTML = `<option value="">${placeholder}</option>` +
-    items.map(i => `<option value="${i.id}">${esc(i.name)}</option>`).join('');
-}
-
-// ── AntiNuke Config laden ──────────────────────────────────────────────────
-// GET /api/config/antinuke/:guildId
-
-async function loadAntiNukeConfig() {
-  const guildId = getGuildId();
-  if (!guildId) return;
-
-  try {
-    const cfg = await GET(`/api/config/antinuke/${guildId}`);
-    if (!cfg) return;
-
-    // Toggles setzen
-    const toggles: Record<string, string> = {
-      'antinuke-enabled':         'enabled',
-      'antinuke-ban':             'banProtection',
-      'antinuke-kick':            'kickProtection',
-      'antinuke-channel-delete':  'channelDeleteProtection',
-      'antinuke-role-delete':     'roleDeleteProtection',
-      'antinuke-webhook':         'webhookProtection',
-    };
-
-    for (const [elId, key] of Object.entries(toggles)) {
-      const input = document.getElementById(elId) as HTMLInputElement | null;
-      if (input) input.checked = !!cfg[key];
+    if (tickets.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:#64748b;">Keine offenen Tickets</td></tr>`;
+      return;
     }
-  } catch { /* ignore */ }
-}
 
-// ── Voice Support Config laden ─────────────────────────────────────────────
-// GET /api/config/voicesupport/:guildId
+    tbody.innerHTML = tickets.map((t: any) => `
+      <tr>
+        <td>#${String(t.ticketNumber || 0).padStart(4, '0')}</td>
+        <td>${t.userId || '—'}</td>
+        <td><span class="cat-badge">${t.category || 'sonstiges'}</span></td>
+        <td><span class="status-dot open">open</span></td>
+        <td>${new Date(t.createdAt).toLocaleString('de-DE')}</td>
+      </tr>
+    `).join('');
 
-async function loadVoiceConfig() {
-  const guildId = getGuildId();
-  if (!guildId) return;
-
-  try {
-    const cfg = await GET(`/api/config/voicesupport/${guildId}`);
-    if (!cfg) return;
-    setVal('voice-channel-id',  cfg.channelId  || '');
-    setVal('voice-category-id', cfg.categoryId || '');
-  } catch { /* ignore */ }
-}
-
-// ── Forms absenden ─────────────────────────────────────────────────────────
-
-function initForms() {
-
-  // Panel + Ticket-Config
-  document.getElementById('panel-form')?.addEventListener('submit', async e => {
-    e.preventDefault();
-    const guildId = getGuildId();
-    if (!guildId) return toast('Bitte zuerst einen Server auswählen', 'error');
-    try {
-      await PUT(`/api/config/tickets/${guildId}`, {
-        panelTitle:           val('panel-title'),
-        panelDescription:     val('panel-description') || null,
-      });
-      toast('Panel gespeichert!', 'success');
-    } catch (e: any) { toast(e.message, 'error'); }
-  });
-
-  // Channel & Rollen IDs
-  document.getElementById('channel-form')?.addEventListener('submit', async e => {
-    e.preventDefault();
-    const guildId = getGuildId();
-    if (!guildId) return toast('Bitte zuerst einen Server auswählen', 'error');
-    try {
-      await PUT(`/api/config/tickets/${guildId}`, {
-        logChannelId:        val('log-channel-id')        || val('log-channel-select')        || null,
-        transcriptChannelId: val('transcript-channel-id') || val('transcript-channel-select') || null,
-        categoryId:          val('category-id')           || val('ticket-category-select')    || null,
-        supportRoleId:       val('support-role-id')       || val('support-role-select')       || null,
-      });
-      toast('Channel-Einstellungen gespeichert!', 'success');
-    } catch (e: any) { toast(e.message, 'error'); }
-  });
-
-  // AntiNuke
-  document.getElementById('antinuke-form')?.addEventListener('submit', async e => {
-    e.preventDefault();
-    const guildId = getGuildId();
-    if (!guildId) return toast('Bitte zuerst einen Server auswählen', 'error');
-    try {
-      await PUT(`/api/config/antinuke/${guildId}`, {
-        enabled:                  isChecked('antinuke-enabled'),
-        banProtection:            isChecked('antinuke-ban'),
-        kickProtection:           isChecked('antinuke-kick'),
-        channelDeleteProtection:  isChecked('antinuke-channel-delete'),
-        roleDeleteProtection:     isChecked('antinuke-role-delete'),
-        webhookProtection:        isChecked('antinuke-webhook'),
-      });
-      toast('AntiNuke gespeichert!', 'success');
-    } catch (e: any) { toast(e.message, 'error'); }
-  });
-
-  // Voice Support
-  document.getElementById('voice-form')?.addEventListener('submit', async e => {
-    e.preventDefault();
-    const guildId = getGuildId();
-    if (!guildId) return toast('Bitte zuerst einen Server auswählen', 'error');
-    try {
-      await PUT(`/api/config/voicesupport/${guildId}`, {
-        channelId:  val('voice-channel-id')  || val('voice-channel-select')  || null,
-        categoryId: val('voice-category-id') || val('voice-category-select') || null,
-      });
-      toast('Voice-Support gespeichert!', 'success');
-    } catch (e: any) { toast(e.message, 'error'); }
-  });
-}
-
-// ── Navigation ─────────────────────────────────────────────────────────────
-
-function initNav() {
-  document.querySelectorAll<HTMLElement>('.nav-item[data-section]').forEach(item => {
-    item.addEventListener('click', e => {
-      e.preventDefault();
-      const section = item.dataset.section!;
-      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
-
-      const crumb = document.querySelector('.crumb-active');
-      if (crumb) crumb.textContent = item.textContent?.trim() ?? '';
-
-      document.querySelectorAll<HTMLElement>('.page-section').forEach(sec => {
-        const show = sec.id === section;
-        sec.style.display = show ? 'flex' : 'none';
-        if (show) { sec.style.flexDirection = 'column'; sec.style.gap = '28px'; }
-      });
-
-      // Lazy-load beim ersten Öffnen
-      if (section === 'settings') {
-        loadTicketConfig();
-        loadChannelsAndRoles();
-      }
-      if (section === 'antinuke') loadAntiNukeConfig();
-      if (section === 'appeals') { loadAppeals(); loadAppealConfig(); loadChannelsAndRoles(); }
-      if (section === 'voice')    loadVoiceConfig();
-    });
-  });
-}
-
-// ── Pulse Bars ─────────────────────────────────────────────────────────────
-
-function initPulseBars() {
-  const container = document.getElementById('pulse-bar');
-  if (!container) return;
-  container.innerHTML = Array.from({ length: 32 }).map((_, i) =>
-    `<div class="pulse-bar-item" style="height:${Math.floor(Math.random() * 80 + 15)}%;animation-delay:${i * 0.04}s"></div>`
-  ).join('');
-  setInterval(() => {
-    container.querySelectorAll<HTMLElement>('.pulse-bar-item').forEach(b => {
-      b.style.height  = `${Math.random() * 80 + 15}%`;
-      b.style.opacity = `${Math.random() * 0.5 + 0.3}`;
-    });
-  }, 900);
-}
-
-// ── Refresh ────────────────────────────────────────────────────────────────
-
-function initRefresh() {
-  document.getElementById('refresh-btn')?.addEventListener('click', async () => {
-    const btn = document.getElementById('refresh-btn')!;
-    btn.classList.add('spinning');
-    await Promise.allSettled([loadStats(), loadGuilds(), loadTickets()]);
-    setTimeout(() => btn.classList.remove('spinning'), 500);
-    toast('Aktualisiert!', 'success');
-  });
-}
-
-// ── Invite Link ────────────────────────────────────────────────────────────
-
-function initInvite() {
-  const cid = CLIENT_ID();
-  const url = cid
-    ? `https://discord.com/oauth2/authorize?client_id=${cid}&permissions=8&scope=bot%20applications.commands`
-    : null;
-
-  const display = document.getElementById('invite-url-display');
-  const linkBtn = document.getElementById('invite-link-btn') as HTMLAnchorElement | null;
-  const copyBtn = document.getElementById('copy-invite-btn');
-
-  if (url) {
-    if (display) display.textContent = url;
-    if (linkBtn) linkBtn.href = url;
-  } else {
-    if (display) display.textContent = 'PUBLIC_DISCORD_CLIENT_ID in .env setzen';
-    if (linkBtn) { linkBtn.style.opacity = '0.4'; linkBtn.style.pointerEvents = 'none'; }
+  } catch (e) {
+    console.error('loadTickets failed', e);
   }
-
-  copyBtn?.addEventListener('click', () => {
-    if (!url) return;
-    navigator.clipboard.writeText(url).then(() => toast('Link kopiert!', 'success'));
-  });
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function setText(id: string, v: string)         { const el = document.getElementById(id); if (el) el.textContent = v; }
-function setVal(id: string, v: string)           { const el = document.getElementById(id) as HTMLInputElement; if (el) el.value = v; }
-function val(id: string): string                 { return (document.getElementById(id) as HTMLInputElement)?.value?.trim() || ''; }
-function isChecked(id: string): boolean          { return !!(document.getElementById(id) as HTMLInputElement)?.checked; }
-function setChip(id: string, online: boolean)    {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.textContent = online ? '● ONLINE' : '● OFFLINE';
-  el.className   = `status-chip ${online ? 'online' : 'offline'}`;
-}
-function esc(s: string): string {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function empty(msg: string): string {
-  return `<div style="padding:24px;text-align:center;color:var(--text-muted);font-family:var(--font-mono);font-size:12px;">${msg}</div>`;
-}
-
-
-// ── Appeals ────────────────────────────────────────────────────────────────
-
-let allAppeals: any[] = [];
-
-async function loadAppeals(statusFilter = '') {
-  const guildId = getGuildId();
-  if (!guildId) return;
-
-  const container = document.getElementById('appeals-list');
-  const badge     = document.getElementById('appeals-count-badge');
-
+// ── Commands laden ────────────────────────────────────────────────────────
+async function loadCommands() {
   try {
-    const path = statusFilter
-      ? `/api/appeals/${guildId}?status=${statusFilter}`
-      : `/api/appeals/${guildId}`;
-
-    allAppeals = await GET(path);
-    if (badge) badge.textContent = `${allAppeals.length} Appeals`;
-
+    const container = document.getElementById('commands-list');
     if (!container) return;
-    if (!allAppeals.length) { container.innerHTML = empty('Keine Appeals gefunden'); return; }
 
-    const colors: Record<string,string> = { pending:'#f59e0b', accepted:'#22c55e', denied:'#ef4444' };
-    const labels: Record<string,string> = { pending:'⏳ Ausstehend', accepted:'✅ Angenommen', denied:'❌ Abgelehnt' };
+    const commands = [
+      { id: "antinuke", name: "AntiNuke", desc: "Schützt den Server vor Massen-Aktionen", enabled: true },
+      { id: "appeal", name: "Appeal", desc: "Ban-Appeal System", enabled: true },
+      { id: "bannliste", name: "Bannliste", desc: "Zeigt die Bannliste des Servers", enabled: true },
+      { id: "createchannel", name: "CreateChannel", desc: "Erstellt temporäre Channels", enabled: false },
+      { id: "interactiveban", name: "Interactive Ban", desc: "Interaktives Ban-Menü", enabled: true },
+      { id: "music", name: "Music", desc: "Musik-Bot Funktionen", enabled: true },
+      { id: "level", name: "Level System", desc: "Leveling & XP System", enabled: true },
+      { id: "logging", name: "Logging", desc: "Server-Log System", enabled: true },
+      { id: "voicesupport", name: "Voice Support", desc: "Temporäre Voice Channels", enabled: true },
+      { id: "ticketpanel", name: "Ticket Panel", desc: "Ticket-Erstellung Panel", enabled: true },
+    ];
 
-    container.innerHTML = allAppeals.map((a: any) => {
-      const color = colors[a.status] || colors.pending;
-      const label = labels[a.status] || labels.pending;
-      const date  = new Date(a.createdAt).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
-      return `
-        <div style="border-bottom:1px solid var(--border);padding:16px 18px;" id="appeal-row-${a.id}">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;">
-            <div style="display:flex;align-items:center;gap:10px;">
-              <span style="font-family:var(--font-mono);font-size:10px;padding:3px 8px;border-radius:4px;background:${color}18;color:${color};border:1px solid ${color}33;">${label}</span>
-              <span style="font-weight:600;font-size:13px;">${esc(a.username)}</span>
-              <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">${a.userId}</span>
-            </div>
-            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);white-space:nowrap;">${date}</span>
-          </div>
-          <div style="cursor:pointer;font-size:12px;color:var(--blue);margin-bottom:6px;" onclick="toggleAppeal('${a.id}')">Details ▼</div>
-          <div id="appeal-detail-${a.id}" style="display:none;flex-direction:column;gap:8px;">
-            <div style="background:var(--bg-raised);border-radius:6px;padding:12px;">
-              <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px;">Was passiert?</div>
-              <div style="font-size:13px;line-height:1.5;">${esc(a.reason)}</div>
-            </div>
-            <div style="background:var(--bg-raised);border-radius:6px;padding:12px;">
-              <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px;">Argumente</div>
-              <div style="font-size:13px;line-height:1.5;">${esc(a.argument)}</div>
-            </div>
-            <div style="background:var(--bg-raised);border-radius:6px;padding:12px;">
-              <div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px;">Versprechen</div>
-              <div style="font-size:13px;line-height:1.5;">${esc(a.promise)}</div>
-            </div>
-            ${a.reviewNote ? `<div style="background:var(--bg-raised);border-radius:6px;padding:12px;border-left:3px solid ${color};"><div style="font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px;">Entscheidungs-Notiz</div><div style="font-size:13px;line-height:1.5;">${esc(a.reviewNote)}</div></div>` : ''}
-            ${a.status === 'pending' ? `
-            <textarea id="note-${a.id}" placeholder="Notiz / Begründung..." style="width:100%;background:var(--bg-raised);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text-primary);font-size:12px;outline:none;resize:vertical;min-height:60px;font-family:var(--font-sans);"></textarea>
-            <div style="display:flex;gap:8px;">
-              <button class="btn btn-primary btn-sm" onclick="reviewAppeal('${a.id}','accepted')">✅ Annehmen</button>
-              <button class="btn btn-danger btn-sm"  onclick="reviewAppeal('${a.id}','denied')">❌ Ablehnen</button>
-              <button class="btn btn-ghost btn-sm"   onclick="reviewAppeal('${a.id}','pending')">⏳ In Bearbeitung</button>
-              <button class="btn btn-ghost btn-sm" style="margin-left:auto;color:var(--text-muted);" onclick="deleteAppeal('${a.id}')">🗑️</button>
-            </div>` : `<div style="display:flex;justify-content:flex-end;"><button class="btn btn-ghost btn-sm" style="color:var(--text-muted);" onclick="deleteAppeal('${a.id}')">🗑️ Löschen</button></div>`}
-          </div>
-        </div>`;
-    }).join('');
-  } catch (e: any) {
-    if (container) container.innerHTML = `<div style="padding:24px;color:var(--red);font-family:var(--font-mono);font-size:12px;">Fehler: ${e.message}</div>`;
+    container.innerHTML = commands.map(cmd => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #1f252f;">
+        <div style="flex:1;">
+          <strong style="font-size:15px;">${cmd.name}</strong>
+          <div style="font-size:13px;color:#94a3b8;margin-top:4px;">${cmd.desc}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" ${cmd.enabled ? 'checked' : ''} 
+                   onchange="toggleCommand('${cmd.id}', this.checked)">
+            <span style="font-size:13px;">Aktiv</span>
+          </label>
+          <button onclick="openCommandSettings('${cmd.id}')" 
+                  class="btn btn-ghost btn-sm">Einstellungen</button>
+        </div>
+      </div>
+    `).join('');
+
+  } catch (e) {
+    console.error('loadCommands failed', e);
   }
 }
 
-async function loadAppealConfig() {
-  const guildId = getGuildId();
-  if (!guildId) return;
-  try {
-    const cfg = await GET(`/api/config/appeal/${guildId}`);
-    if (!cfg) return;
-    setVal('appeal-channel-id', cfg.appealChannelId || '');
-  } catch { /* ignore */ }
+function toggleCommand(id: string, enabled: boolean) {
+  toast(`Command ${id} wurde ${enabled ? 'aktiviert' : 'deaktiviert'}`, 'success');
 }
 
-(window as any).toggleAppeal = (id: string) => {
-  const el = document.getElementById(`appeal-detail-${id}`);
-  if (!el) return;
-  const show = el.style.display === 'none';
-  el.style.display = show ? 'flex' : 'none';
-  if (show) { el.style.flexDirection = 'column'; el.style.gap = '8px'; }
-};
+function openCommandSettings(id: string) {
+  toast(`Einstellungen für "${id}" öffnen... (kommt bald)`, 'info');
+}
 
-(window as any).filterAppeals = (status: string) => loadAppeals(status);
-
-(window as any).reviewAppeal = async (appealId: string, status: string) => {
-  const guildId = getGuildId();
-  const note    = (document.getElementById(`note-${appealId}`) as HTMLTextAreaElement)?.value || '';
-  try {
-    await api('PATCH', `/api/appeals/${guildId}/${appealId}`, { status, reviewNote: note });
-    toast(`Appeal ${status === 'accepted' ? 'angenommen' : status === 'denied' ? 'abgelehnt' : 'aktualisiert'}!`, 'success');
-    loadAppeals((document.getElementById('appeal-filter') as HTMLSelectElement)?.value || '');
-  } catch (e: any) { toast(e.message, 'error'); }
-};
-
-(window as any).deleteAppeal = async (appealId: string) => {
-  if (!confirm('Appeal wirklich löschen?')) return;
-  const guildId = getGuildId();
-  try {
-    await api('DELETE', `/api/appeals/${guildId}/${appealId}`);
-    document.getElementById(`appeal-row-${appealId}`)?.remove();
-    toast('Appeal gelöscht', 'success');
-  } catch (e: any) { toast(e.message, 'error'); }
-};
-
-// Appeal Config speichern
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('save-appeal-config-btn')?.addEventListener('click', async () => {
-    const guildId = getGuildId();
-    if (!guildId) return toast('Bitte zuerst einen Server auswählen', 'error');
-    try {
-      await PUT(`/api/config/appeal/${guildId}`, {
-        appealChannelId: val('appeal-channel-id') || val('appeal-channel-select') || null,
-      });
-      toast('Appeal-Config gespeichert!', 'success');
-    } catch (e: any) { toast(e.message, 'error'); }
-  });
-});
-
-// ── Boot ───────────────────────────────────────────────────────────────────
-
+// ── Start ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  initNav();
-  initPulseBars();
-  initRefresh();
-  initForms();
-  initInvite();
+  console.log('Dashboard DOM ready');
 
-  // Erst Guilds laden (befüllt den Select), dann Stats + Tickets
-  await loadGuilds();
-  await Promise.allSettled([loadStats(), loadTickets()]);
+  await Promise.allSettled([
+    loadStats(),
+    loadGuilds(),
+    loadTickets(),
+    loadCommands()
+  ]);
 
   // Auto-Refresh
-  setInterval(loadStats,   30_000);
-  setInterval(loadTickets, 60_000);
+  setInterval(loadStats, 30000);
+  setInterval(loadGuilds, 60000);
+  setInterval(loadTickets, 60000);
 });

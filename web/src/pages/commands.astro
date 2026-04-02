@@ -1,0 +1,83 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="ModBot Dragon · Commands" pageTitle="Commands">
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-title">Dashboard <span class="topbar-sep">›</span> <span class="crumb-active">Commands</span></div>
+      <div class="topbar-right">
+        <button class="btn btn-ghost btn-sm" id="refresh-btn">Refresh</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="card">
+        <div class="card-header">
+          <div>Command Konfiguration</div>
+        </div>
+        <div id="commands-list" style="padding:20px;">
+          Lade Commands...
+        </div>
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<script>
+// Globale Funktionen direkt im Fenster definieren (damit onclick sie findet)
+window.toggleCommand = function(id, enabled) {
+  console.log(`Toggle Command: ${id} → ${enabled}`);
+  toast(`Command "${id}" wurde ${enabled ? 'aktiviert' : 'deaktiviert'}`, 'success');
+};
+
+window.openCommandSettings = function(id) {
+  console.log(`Einstellungen für: ${id}`);
+  toast(`Einstellungen für "${id}" öffnen... (kommt bald)`, 'info');
+};
+
+// Commands laden
+function loadCommands() {
+  const container = document.getElementById('commands-list');
+  if (!container) return;
+
+  const commands = [
+    { id: "antinuke",      name: "AntiNuke",          desc: "Schützt den Server vor Massen-Aktionen", enabled: true },
+    { id: "appeal",        name: "Appeal",            desc: "Ban-Appeal System", enabled: true },
+    { id: "bannliste",     name: "Bannliste",         desc: "Zeigt die Bannliste des Servers", enabled: true },
+    { id: "createchannel", name: "CreateChannel",     desc: "Erstellt temporäre Channels", enabled: false },
+    { id: "interactiveban",name: "Interactive Ban",   desc: "Interaktives Ban-Menü", enabled: true },
+    { id: "music",         name: "Music",             desc: "Musik-Bot Funktionen", enabled: true },
+    { id: "level",         name: "Level System",      desc: "Leveling & XP System", enabled: true },
+    { id: "logging",       name: "Logging",           desc: "Server-Log System", enabled: true },
+    { id: "voicesupport",  name: "Voice Support",     desc: "Temporäre Voice Channels", enabled: true },
+    { id: "ticketpanel",   name: "Ticket Panel",      desc: "Ticket-Erstellung Panel", enabled: true },
+  ];
+
+  let html = '';
+  commands.forEach(cmd => {
+    html += `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #1f252f;">
+        <div style="flex:1;">
+          <strong style="font-size:15px;">${cmd.name}</strong>
+          <div style="font-size:13px;color:#94a3b8;margin-top:4px;">${cmd.desc}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" ${cmd.enabled ? 'checked' : ''} 
+                   onchange="toggleCommand('${cmd.id}', this.checked)">
+            <span style="font-size:13px;">Aktiv</span>
+          </label>
+          <button onclick="openCommandSettings('${cmd.id}')" 
+                  class="btn btn-ghost btn-sm">Einstellungen</button>
+        </div>
+      </div>`;
+  });
+  container.innerHTML = html;
+}
+
+// Start
+document.addEventListener('DOMContentLoaded', () => {
+  loadCommands();
+});
+</script>

@@ -1,4 +1,5 @@
-// api/index.js  ← Finale Version für Vercel
+// src/api/index.js  ← Finale Version für Vercel + Astro Dashboard
+
 require('dotenv').config();
 
 const express = require('express');
@@ -50,14 +51,13 @@ function saveJson(filePath, data) {
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 
-// Bot Client
 let botClient = null;
 
 function setBotClient(client) {
   botClient = client;
 }
 
-// ==================== ROUTEN (ohne /api/ am Anfang) ====================
+// ==================== ROUTEN (ohne /api/ Prefix) ====================
 
 app.get('/bot/status', requireAuth, (req, res) => {
   if (!botClient) {
@@ -105,9 +105,7 @@ app.get('/tickets/:guildId', requireAuth, (req, res) => {
   res.json(Object.values(guildConfig.activeTickets || {}));
 });
 
-// AntiNuke, Voice, Appeal, Appeals, Guild Channels, Roles, Members, Transcripts, Actions...
-// (Ich habe alle wichtigen Routen aus deiner Originaldatei übernommen und angepasst)
-
+// AntiNuke
 app.get('/config/antinuke/:guildId', requireAuth, (req, res) => {
   const config = loadJson(path.join(DATA_DIR, 'antinuke.json'));
   res.json(config[req.params.guildId] || null);
@@ -120,6 +118,7 @@ app.put('/config/antinuke/:guildId', requireAuth, (req, res) => {
   res.json({ success: ok });
 });
 
+// Voice Support
 app.get('/config/voicesupport/:guildId', requireAuth, (req, res) => {
   const config = loadJson(path.join(DATA_DIR, 'voiceSupport.json'));
   res.json(config[req.params.guildId] || null);
@@ -132,6 +131,7 @@ app.put('/config/voicesupport/:guildId', requireAuth, (req, res) => {
   res.json({ success: ok });
 });
 
+// Appeal Config
 app.get('/config/appeal/:guildId', requireAuth, (req, res) => {
   const config = loadJson(path.join(DATA_DIR, 'appealConfig.json'));
   res.json(config[req.params.guildId] || null);
@@ -144,7 +144,7 @@ app.put('/config/appeal/:guildId', requireAuth, (req, res) => {
   res.json({ success: ok });
 });
 
-// Appeals (alle 4 Routen)
+// Appeals
 app.get('/appeals/:guildId', requireAuth, (req, res) => {
   const appeals = loadJson(path.join(DATA_DIR, 'appeals.json'));
   const guildAppeals = Object.values(appeals[req.params.guildId] || {});
@@ -154,15 +154,7 @@ app.get('/appeals/:guildId', requireAuth, (req, res) => {
   res.json(filtered);
 });
 
-app.get('/appeals/:guildId/:appealId', requireAuth, (req, res) => {
-  const appeals = loadJson(path.join(DATA_DIR, 'appeals.json'));
-  const appeal = appeals[req.params.guildId]?.[req.params.appealId];
-  if (!appeal) return res.status(404).json({ error: 'Appeal nicht gefunden' });
-  res.json(appeal);
-});
-
 app.patch('/appeals/:guildId/:appealId', requireAuth, async (req, res) => {
-  // Dein originaler Patch-Code (unverändert, nur Pfad angepasst)
   const { status, reviewNote } = req.body;
   const validStatuses = ['pending', 'accepted', 'denied'];
   if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Ungültiger Status' });
@@ -176,22 +168,6 @@ app.patch('/appeals/:guildId/:appealId', requireAuth, async (req, res) => {
   appeal.reviewedAt = Date.now();
 
   saveJson(path.join(DATA_DIR, 'appeals.json'), appeals);
-
-  if (botClient && status !== 'pending') {
-    try {
-      const { EmbedBuilder } = require('discord.js');
-      const user = await botClient.users.fetch(appeal.userId);
-      const guild = botClient.guilds.cache.get(req.params.guildId);
-      await user.send({
-        embeds: [new EmbedBuilder()
-          .setTitle(`Dein Appeal wurde ${status === 'accepted' ? 'angenommen ✅' : 'abgelehnt ❌'}`)
-          .setColor(status === 'accepted' ? 0x22c55e : 0xef4444)
-          .setDescription(`**Server:** ${guild?.name || req.params.guildId}\n\n${reviewNote ? `**Begründung:**\n${reviewNote}` : ''}`)
-          .setTimestamp()
-        ]
-      }).catch(() => {});
-    } catch {}
-  }
   res.json({ success: true, appeal });
 });
 
@@ -203,17 +179,39 @@ app.delete('/appeals/:guildId/:appealId', requireAuth, (req, res) => {
   res.json({ success: true });
 });
 
-// Die restlichen Routen (Guild Channels, Roles, Members, Ban, Kick, Role, Transcripts, Actions) sind identisch angepasst.
-// Wenn du noch Syntax-Fehler hast, kopiere die restlichen Routen aus deiner alten Datei und entferne überall das führende `/api` aus dem Pfad.
+// Guild Channels & Roles
+app.get('/guild/:guildId/channels', requireAuth, async (req, res) => {
+  if (!botClient) return res.json([]);
+  try {
+    const guild = botClient.guilds.cache.get(req.params.guildId);
+    if (!guild) return res.json([]);
+    const channels = guild.channels.cache
+      .filter(c => [0, 2, 4].includes(c.type))
+      .map(c => ({ id: c.id, name: c.name, type: c.type }));
+    res.json(channels);
+  } catch (e) {
+    res.json([]);
+  }
+});
 
-app.get('/guild/:guildId/channels', requireAuth, async (req, res) => { /* dein originaler Code */ });
-app.get('/guild/:guildId/roles', requireAuth, async (req, res) => { /* dein originaler Code */ });
-// ... und so weiter für alle anderen Routen
+app.get('/guild/:guildId/roles', requireAuth, async (req, res) => {
+  if (!botClient) return res.json([]);
+  try {
+    const guild = botClient.guilds.cache.get(req.params.guildId);
+    if (!guild) return res.json([]);
+    const roles = guild.roles.cache
+      .filter(r => r.id !== guild.id)
+      .map(r => ({ id: r.id, name: r.name, color: r.hexColor }));
+    res.json(roles);
+  } catch (e) {
+    res.json([]);
+  }
+});
 
 // Health Check
 app.get('/health', (req, res) => {
   res.json({ ok: true, timestamp: Date.now() });
 });
 
-// Export für Vercel
+// WICHTIG für Vercel
 module.exports = app;

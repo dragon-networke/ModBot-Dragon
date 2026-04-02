@@ -55,7 +55,7 @@ function setBotClient(client) {
   botClient = client;
 }
 
-app.get('/api/bot/status', requireAuth, (req, res) => {
+app.get('/bot/status', requireAuth, (req, res) => {
   if (!botClient) {
     return res.json({ status: 'offline', guilds: 0, users: 0, ping: 0 });
   }
@@ -70,7 +70,7 @@ app.get('/api/bot/status', requireAuth, (req, res) => {
   });
 });
 
-app.get('/api/bot/guilds', requireAuth, (req, res) => {
+app.get('/bot/guilds', requireAuth, (req, res) => {
   if (!botClient) return res.json([]);
   const guilds = botClient.guilds.cache.map(g => ({
     id: g.id,
@@ -83,12 +83,12 @@ app.get('/api/bot/guilds', requireAuth, (req, res) => {
 
 // ==================== TICKET CONFIG ====================
 
-app.get('/api/config/tickets/:guildId', requireAuth, (req, res) => {
+app.get('/config/tickets/:guildId', requireAuth, (req, res) => {
   const config = loadJson(path.join(DATA_DIR, 'tickets.json'));
   res.json(config[req.params.guildId] || null);
 });
 
-app.put('/api/config/tickets/:guildId', requireAuth, (req, res) => {
+app.put('/config/tickets/:guildId', requireAuth, (req, res) => {
   const config = loadJson(path.join(DATA_DIR, 'tickets.json'));
   config[req.params.guildId] = {
     ...config[req.params.guildId],
@@ -98,7 +98,7 @@ app.put('/api/config/tickets/:guildId', requireAuth, (req, res) => {
   res.json({ success: ok });
 });
 
-app.get('/api/tickets/:guildId', requireAuth, (req, res) => {
+app.get('/tickets/:guildId', requireAuth, (req, res) => {
   const config = loadJson(path.join(DATA_DIR, 'tickets.json'));
   const guildConfig = config[req.params.guildId];
   if (!guildConfig) return res.json([]);
@@ -108,12 +108,12 @@ app.get('/api/tickets/:guildId', requireAuth, (req, res) => {
 
 // ==================== ANTINUKE CONFIG ====================
 
-app.get('/api/config/antinuke/:guildId', requireAuth, (req, res) => {
+app.get('/config/antinuke/:guildId', requireAuth, (req, res) => {
   const config = loadJson(path.join(DATA_DIR, 'antinuke.json'));
   res.json(config[req.params.guildId] || null);
 });
 
-app.put('/api/config/antinuke/:guildId', requireAuth, (req, res) => {
+app.put('/config/antinuke/:guildId', requireAuth, (req, res) => {
   const config = loadJson(path.join(DATA_DIR, 'antinuke.json'));
   config[req.params.guildId] = {
     ...config[req.params.guildId],
@@ -125,12 +125,12 @@ app.put('/api/config/antinuke/:guildId', requireAuth, (req, res) => {
 
 // ==================== VOICE SUPPORT CONFIG ====================
 
-app.get('/api/config/voicesupport/:guildId', requireAuth, (req, res) => {
+app.get('/config/voicesupport/:guildId', requireAuth, (req, res) => {
   const config = loadJson(path.join(DATA_DIR, 'voiceSupport.json'));
   res.json(config[req.params.guildId] || null);
 });
 
-app.put('/api/config/voicesupport/:guildId', requireAuth, (req, res) => {
+app.put('/config/voicesupport/:guildId', requireAuth, (req, res) => {
   const config = loadJson(path.join(DATA_DIR, 'voiceSupport.json'));
   config[req.params.guildId] = {
     ...config[req.params.guildId],
@@ -142,12 +142,12 @@ app.put('/api/config/voicesupport/:guildId', requireAuth, (req, res) => {
 
 // ==================== APPEAL CONFIG ====================
 
-app.get('/api/config/appeal/:guildId', requireAuth, (req, res) => {
+app.get('/config/appeal/:guildId', requireAuth, (req, res) => {
   const config = loadJson(path.join(DATA_DIR, 'appealConfig.json'));
   res.json(config[req.params.guildId] || null);
 });
 
-app.put('/api/config/appeal/:guildId', requireAuth, (req, res) => {
+app.put('/config/appeal/:guildId', requireAuth, (req, res) => {
   const config = loadJson(path.join(DATA_DIR, 'appealConfig.json'));
   config[req.params.guildId] = {
     ...config[req.params.guildId],
@@ -160,7 +160,7 @@ app.put('/api/config/appeal/:guildId', requireAuth, (req, res) => {
 // ==================== APPEALS ====================
 
 // Alle Appeals einer Guild (optional nach Status filtern)
-app.get('/api/appeals/:guildId', requireAuth, (req, res) => {
+app.get('/appeals/:guildId', requireAuth, (req, res) => {
   const appeals = loadJson(path.join(DATA_DIR, 'appeals.json'));
   const guildAppeals = Object.values(appeals[req.params.guildId] || {});
 
@@ -174,7 +174,7 @@ app.get('/api/appeals/:guildId', requireAuth, (req, res) => {
 });
 
 // Einzelnes Appeal
-app.get('/api/appeals/:guildId/:appealId', requireAuth, (req, res) => {
+app.get('/appeals/:guildId/:appealId', requireAuth, (req, res) => {
   const appeals = loadJson(path.join(DATA_DIR, 'appeals.json'));
   const appeal  = appeals[req.params.guildId]?.[req.params.appealId];
   if (!appeal) return res.status(404).json({ error: 'Appeal nicht gefunden' });
@@ -182,7 +182,7 @@ app.get('/api/appeals/:guildId/:appealId', requireAuth, (req, res) => {
 });
 
 // Appeal Status ändern
-app.patch('/api/appeals/:guildId/:appealId', requireAuth, async (req, res) => {
+app.patch('/appeals/:guildId/:appealId', requireAuth, async (req, res) => {
   const { status, reviewNote } = req.body;
   const validStatuses = ['pending', 'accepted', 'denied'];
 
@@ -228,7 +228,7 @@ app.patch('/api/appeals/:guildId/:appealId', requireAuth, async (req, res) => {
 });
 
 // Appeal löschen
-app.delete('/api/appeals/:guildId/:appealId', requireAuth, (req, res) => {
+app.delete('/appeals/:guildId/:appealId', requireAuth, (req, res) => {
   const appeals = loadJson(path.join(DATA_DIR, 'appeals.json'));
   if (!appeals[req.params.guildId]?.[req.params.appealId]) {
     return res.status(404).json({ error: 'Appeal nicht gefunden' });
@@ -240,7 +240,7 @@ app.delete('/api/appeals/:guildId/:appealId', requireAuth, (req, res) => {
 
 // ==================== GUILD CHANNELS & ROLES ====================
 
-app.get('/api/guild/:guildId/channels', requireAuth, async (req, res) => {
+app.get('/guild/:guildId/channels', requireAuth, async (req, res) => {
   if (!botClient) return res.json([]);
   try {
     const guild = botClient.guilds.cache.get(req.params.guildId);
@@ -254,7 +254,7 @@ app.get('/api/guild/:guildId/channels', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/guild/:guildId/roles', requireAuth, async (req, res) => {
+app.get('/guild/:guildId/roles', requireAuth, async (req, res) => {
   if (!botClient) return res.json([]);
   try {
     const guild = botClient.guilds.cache.get(req.params.guildId);
@@ -271,7 +271,7 @@ app.get('/api/guild/:guildId/roles', requireAuth, async (req, res) => {
 
 // ==================== MEMBERS ====================
 
-app.get('/api/guild/:guildId/members', requireAuth, async (req, res) => {
+app.get('/guild/:guildId/members', requireAuth, async (req, res) => {
   if (!botClient) return res.json([]);
   try {
     const guild   = botClient.guilds.cache.get(req.params.guildId);
@@ -288,7 +288,7 @@ app.get('/api/guild/:guildId/members', requireAuth, async (req, res) => {
   } catch (e) { res.json([]); }
 });
 
-app.get('/api/guild/:guildId/member/:userId', requireAuth, async (req, res) => {
+app.get('/guild/:guildId/member/:userId', requireAuth, async (req, res) => {
   if (!botClient) return res.status(503).json({ error: 'Bot nicht verfügbar' });
   try {
     const guild  = botClient.guilds.cache.get(req.params.guildId);
@@ -305,7 +305,7 @@ app.get('/api/guild/:guildId/member/:userId', requireAuth, async (req, res) => {
   } catch (e) { res.status(404).json({ error: 'Nutzer nicht gefunden' }); }
 });
 
-app.post('/api/guild/:guildId/member/:userId/ban', requireAuth, async (req, res) => {
+app.post('/guild/:guildId/member/:userId/ban', requireAuth, async (req, res) => {
   if (!botClient) return res.status(503).json({ error: 'Bot nicht verfügbar' });
   try {
     const guild = botClient.guilds.cache.get(req.params.guildId);
@@ -315,7 +315,7 @@ app.post('/api/guild/:guildId/member/:userId/ban', requireAuth, async (req, res)
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/guild/:guildId/member/:userId/kick', requireAuth, async (req, res) => {
+app.post('/guild/:guildId/member/:userId/kick', requireAuth, async (req, res) => {
   if (!botClient) return res.status(503).json({ error: 'Bot nicht verfügbar' });
   try {
     const guild  = botClient.guilds.cache.get(req.params.guildId);
@@ -326,7 +326,7 @@ app.post('/api/guild/:guildId/member/:userId/kick', requireAuth, async (req, res
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/guild/:guildId/member/:userId/role', requireAuth, async (req, res) => {
+app.post('/guild/:guildId/member/:userId/role', requireAuth, async (req, res) => {
   if (!botClient) return res.status(503).json({ error: 'Bot nicht verfügbar' });
   try {
     const { roleId, action } = req.body;
@@ -341,14 +341,14 @@ app.post('/api/guild/:guildId/member/:userId/role', requireAuth, async (req, res
 
 // ==================== TRANSCRIPTS ====================
 
-app.get('/api/transcripts/:guildId', requireAuth, (req, res) => {
+app.get('/transcripts/:guildId', requireAuth, (req, res) => {
   const data = loadJson(path.join(DATA_DIR, 'transcripts.json'));
   const list = Object.values(data[req.params.guildId] || {});
   list.sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0));
   res.json(list);
 });
 
-app.get('/api/transcripts/:guildId/:ticketNumber', requireAuth, (req, res) => {
+app.get('/transcripts/:guildId/:ticketNumber', requireAuth, (req, res) => {
   const data       = loadJson(path.join(DATA_DIR, 'transcripts.json'));
   const guildData  = data[req.params.guildId] || {};
   const transcript = Object.values(guildData).find(t => String(t.ticketNumber) === req.params.ticketNumber);
@@ -358,7 +358,7 @@ app.get('/api/transcripts/:guildId/:ticketNumber', requireAuth, (req, res) => {
 
 // ==================== GUILD ACTIONS ====================
 
-app.post('/api/guild/:guildId/close-all-tickets', requireAuth, (req, res) => {
+app.post('/guild/:guildId/close-all-tickets', requireAuth, (req, res) => {
   const config = loadJson(path.join(DATA_DIR, 'tickets.json'));
   if (config[req.params.guildId]) {
     config[req.params.guildId].activeTickets = {};
@@ -367,7 +367,7 @@ app.post('/api/guild/:guildId/close-all-tickets', requireAuth, (req, res) => {
   res.json({ success: true });
 });
 
-app.post('/api/guild/:guildId/leave', requireAuth, async (req, res) => {
+app.post('/guild/:guildId/leave', requireAuth, async (req, res) => {
   if (!botClient) return res.status(503).json({ error: 'Bot nicht verfügbar' });
   try {
     const guild = botClient.guilds.cache.get(req.params.guildId);
@@ -379,7 +379,7 @@ app.post('/api/guild/:guildId/leave', requireAuth, async (req, res) => {
 
 // ==================== HEALTH CHECK ====================
 
-app.get('/api/health', (req, res) => {
+app.get('/health', (req, res) => {
   res.json({ ok: true, timestamp: Date.now() });
 });
 
