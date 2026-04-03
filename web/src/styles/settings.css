@@ -1,0 +1,32 @@
+/* settings.css */
+
+.invite-card {
+  background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+  border-radius: 16px;
+  padding: 50px 40px;
+  text-align: center;
+  color: white;
+  margin-bottom: 30px;
+}
+
+.invite-card h3 {
+  font-size: 24px;
+  margin-bottom: 12px;
+}
+
+.invite-btn {
+  background: white;
+  color: #1e40af;
+  font-weight: 600;
+  font-size: 18px;
+  padding: 16px 48px;
+  border-radius: 12px;
+  text-decoration: none;
+  display: inline-block;
+  margin-top: 20px;
+  transition: transform 0.2s;
+}
+
+.invite-btn:hover {
+  transform: scale(1.05);
+}

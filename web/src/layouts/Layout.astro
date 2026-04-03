@@ -25,7 +25,6 @@ const guildId = Astro.cookies.get('selectedGuild')?.value || '';
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>{title}</title>
 
-  <!-- API Konfiguration für alle Seiten -->
   <script define:vars={{ 
     apiUrl: import.meta.env.PUBLIC_API_URL || 'http://localhost:3001',
     apiToken: import.meta.env.PUBLIC_API_TOKEN || '',
@@ -39,7 +38,6 @@ const guildId = Astro.cookies.get('selectedGuild')?.value || '';
 <body>
 <div class="shell">
 
-  <!-- Einheitliche Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <div class="brand-name"><span class="brand-dot"></span>ModBot Dragon</div>
@@ -47,41 +45,16 @@ const guildId = Astro.cookies.get('selectedGuild')?.value || '';
     </div>
     <nav class="sidebar-nav">
       <div class="nav-label">Übersicht</div>
-      <a href="/" class="nav-item {Astro.url.pathname === '/' ? 'active' : ''}">
-        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/>
-          <rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/>
-        </svg>Dashboard
-      </a>
-
-      <div class="nav-label">Tickets</div>
-      <a href="/transcripts" class="nav-item {Astro.url.pathname === '/transcripts' ? 'active' : ''}">
-        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M4 1.5h8a1 1 0 011 1v11a1 1 0 01-1 1H4a1 1 0 01-1-1v-11a1 1 0 011-1z"/>
-          <path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3"/>
-        </svg>Transcripts
-      </a>
+      <a href="/" class="nav-item {Astro.url.pathname === '/' ? 'active' : ''}">Dashboard</a>
+      <a href="/transcripts" class="nav-item {Astro.url.pathname === '/transcripts' ? 'active' : ''}">Transcripts</a>
 
       <div class="nav-label">Server</div>
-      <a href="/guild" class="nav-item {Astro.url.pathname === '/guild' ? 'active' : ''}">
-        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="8" cy="6" r="2.5"/><path d="M3 13c0-2.76 2.24-5 5-5s5 2.24 5 5"/>
-        </svg>Server wechseln
-      </a>
-      <a href="/commands" class="nav-item {Astro.url.pathname === '/commands' ? 'active' : ''}">
-        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M2 4l4 4-4 4M9 12h5"/>
-        </svg>Commands
-      </a>
-      <a href="/settings" class="nav-item {Astro.url.pathname === '/settings' ? 'active' : ''}">
-        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="8" cy="8" r="2"/>
-          <path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15"/>
-        </svg>Einstellungen
-      </a>
+      <a href="/guild" class="nav-item {Astro.url.pathname === '/guild' ? 'active' : ''}">Server wechseln</a>
+      <a href="/commands" class="nav-item {Astro.url.pathname === '/commands' ? 'active' : ''}">Commands</a>
+      <a href="/settings" class="nav-item {Astro.url.pathname === '/settings' ? 'active' : ''}">Einstellungen</a>
     </nav>
 
-    <!-- Footer mit User + Impressum + Datenschutz -->
+    <!-- Footer mit User + Logout -->
     <div class="sidebar-footer">
       <div class="flex flex-col gap-4 pt-6 border-t border-zinc-800">
 
@@ -93,20 +66,18 @@ const guildId = Astro.cookies.get('selectedGuild')?.value || '';
               class="w-8 h-8 rounded-full ring-2 ring-zinc-700"
               onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'"
             >
-            <div class="text-sm">
+            <div class="text-sm flex-1">
               <div class="font-medium text-white">{currentUser.username}</div>
               <div class="text-emerald-400 text-xs">angemeldet</div>
             </div>
+            <!-- Logout als Link zur dedizierten Logout-Seite -->
+            <a href="/auth/logout" class="logout-btn">Abmelden</a>
           </div>
         )}
 
         <div class="flex flex-col gap-1 text-xs px-3">
-          <a href="/impressum" class="text-zinc-400 hover:text-zinc-200 transition-colors flex items-center gap-2 py-1">📜 Impressum</a>
-          <a href="/datenschutz" class="text-zinc-400 hover:text-zinc-200 transition-colors flex items-center gap-2 py-1">🔒 Datenschutz</a>
-        </div>
-
-        <div class="text-[10px] text-zinc-600 px-3 mt-4">
-          ModBot Dragon Dashboard © 2026
+          <a href="/impressum" class="text-zinc-400 hover:text-zinc-200">📜 Impressum</a>
+          <a href="/datenschutz" class="text-zinc-400 hover:text-zinc-200">🔒 Datenschutz</a>
         </div>
       </div>
     </div>

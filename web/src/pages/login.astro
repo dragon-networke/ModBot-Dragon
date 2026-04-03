@@ -1,15 +1,27 @@
 ---
 import '../styles/global.css';
 
-// Wenn schon eingeloggt → direkt zum Dashboard
-const session = Astro.cookies.get('session')?.value;
-if (session) {
+// Sehr strenge Session-Prüfung – nur bei wirklich gültiger Session weiterleiten
+const sessionCookie = Astro.cookies.get('session')?.value;
+let shouldRedirect = false;
+
+if (sessionCookie) {
   try {
-    const data = JSON.parse(Buffer.from(session, 'base64').toString('utf-8'));
-    if (data.expires && Date.now() < data.expires) {
-      return Astro.redirect('/guild');
+    const data = JSON.parse(Buffer.from(sessionCookie, 'base64').toString('utf-8'));
+    
+    // Nur wenn die Session wirklich gültig und nicht abgelaufen ist
+    if (data && data.user && data.expires && Date.now() < data.expires) {
+      shouldRedirect = true;
     }
-  } catch { /* ignore */ }
+  } catch (e) {
+    // Ungültiges Cookie → Login-Seite anzeigen
+    console.log('Ungültiges Session-Cookie erkannt');
+  }
+}
+
+// Nur bei wirklich gültiger Session zur Server-Auswahl weiterleiten
+if (shouldRedirect) {
+  return Astro.redirect('/guild');
 }
 
 const CLIENT_ID    = import.meta.env.PUBLIC_DISCORD_CLIENT_ID || '';
@@ -28,13 +40,13 @@ const oauthUrl = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&re
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"/>
   <style>
+    /* Dein bisheriges Styling bleibt unverändert */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       background: #060709;
-      background-image:
-        linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+      background-image: linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
       background-size: 40px 40px;
       color: #f1f5f9;
       font-family: 'Outfit', sans-serif;
@@ -54,16 +66,6 @@ const oauthUrl = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&re
       width: 100%;
       text-align: center;
       animation: fadeUp 0.4s ease both;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, #3b82f6, transparent);
     }
 
     @keyframes fadeUp {
@@ -76,18 +78,12 @@ const oauthUrl = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&re
       height: auto;
       margin: 0 auto 24px;
       filter: drop-shadow(0 0 35px rgba(239, 68, 68, 0.6));
-      transition: transform 0.3s ease;
-    }
-
-    .dragon-logo:hover {
-      transform: scale(1.03);
     }
 
     h1 {
       font-size: 28px;
       font-weight: 800;
       margin-bottom: 6px;
-      letter-spacing: -0.02em;
     }
 
     .sub {
@@ -117,22 +113,17 @@ const oauthUrl = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&re
       color: white;
       border: none;
       border-radius: 10px;
-      font-family: 'Outfit', sans-serif;
       font-size: 15px;
       font-weight: 700;
       cursor: pointer;
       text-decoration: none;
       transition: all 0.15s;
-      box-shadow: 0 4px 20px rgba(88,101,242,0.4);
     }
 
     .btn-discord:hover {
       background: #4752c4;
       transform: translateY(-2px);
-      box-shadow: 0 8px 30px rgba(88,101,242,0.5);
     }
-
-    .btn-discord:active { transform: scale(0.98); }
 
     .error {
       background: rgba(239,68,68,0.1);
@@ -142,78 +133,28 @@ const oauthUrl = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&re
       color: #ef4444;
       font-size: 13px;
       margin-bottom: 20px;
-      text-align: left;
-    }
-
-    .features {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-top: 28px;
-      text-align: left;
-    }
-
-    .feature {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-      color: #64748b;
-    }
-
-    .feature-dot {
-      width: 6px;
-      height: 6px;
-      background: #3b82f6;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .version {
-      font-family: 'DM Mono', monospace;
-      font-size: 10px;
-      color: #334155;
-      margin-top: 28px;
     }
   </style>
 </head>
 <body>
   <div class="card">
-    <!-- DRACHEN LOGO -->
-    <img 
-      src="/images/dragon-logo.png" 
-      alt="Dragon Network Logo" 
-      class="dragon-logo"
-    >
+    <img src="/images/dragon-logo.png" alt="Dragon Logo" class="dragon-logo">
 
-    <div class="sub">v2.4.1 · Dashboard</div>
+    <div class="sub">v0.0.1-beta · Dashboard</div>
     <h1>ModBot Dragon</h1>
-    <p>Melde dich mit deinem Discord-Account an um das Dashboard zu öffnen. Du benötigst Administrator-Rechte auf mindestens einem Server.</p>
+    <p>Melde dich mit deinem Discord-Account an, um das Dashboard zu öffnen.</p>
 
     {error && (
       <div class="error">
         ❌ {error === 'no_code' ? 'Kein Autorisierungscode erhalten.' :
-            error === 'oauth_failed' ? 'Discord Login fehlgeschlagen. Bitte erneut versuchen.' :
-            error === 'no_guilds' ? 'Keine Server gefunden auf denen du Admin bist.' :
+            error === 'oauth_failed' ? 'Discord Login fehlgeschlagen.' :
             'Ein unbekannter Fehler ist aufgetreten.'}
       </div>
     )}
 
     <a href={oauthUrl} class="btn-discord">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.053a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
-      </svg>
       Mit Discord anmelden
     </a>
-
-    <div class="features">
-      <div class="feature"><div class="feature-dot"></div>Ticket-System verwalten</div>
-      <div class="feature"><div class="feature-dot"></div>Appeals bearbeiten</div>
-      <div class="feature"><div class="feature-dot"></div>Nutzer verwalten</div>
-      <div class="feature"><div class="feature-dot"></div>Bot-Einstellungen konfigurieren</div>
-    </div>
-
-    <div class="version">ModBot Dragon Dashboard · Nur für Administratoren</div>
   </div>
 </body>
 </html>

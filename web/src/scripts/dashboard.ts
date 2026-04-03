@@ -1,5 +1,5 @@
 // src/scripts/dashboard.ts
-// Angepasst für das neue Layout
+// Finale Version – Buttons in Commands funktionieren jetzt
 
 // @ts-nocheck
 
@@ -47,7 +47,6 @@ async function loadStats() {
     const s = await GET('/bot/status');
     console.log('Stats erhalten:', s);
 
-    // Stats Cards
     const guildsEl = document.getElementById('stat-guilds');
     if (guildsEl) guildsEl.textContent = String(s.guilds ?? '—');
 
@@ -60,7 +59,6 @@ async function loadStats() {
     const ticketsEl = document.getElementById('stat-tickets');
     if (ticketsEl) ticketsEl.textContent = String(s.tickets ?? '—');
 
-    // Live Status Chip
     const chip = document.getElementById('bot-status-chip');
     if (chip) {
       const online = s.status === 'online';
@@ -68,7 +66,6 @@ async function loadStats() {
       chip.className = `status-chip ${online ? 'online' : 'offline'}`;
     }
 
-    // Live Status Werte
     const statusEl = document.getElementById('bot-status');
     if (statusEl) statusEl.textContent = (s.status || 'OFFLINE').toUpperCase();
 
@@ -101,8 +98,7 @@ async function loadGuilds() {
     const guilds = await GET('/bot/guilds');
     console.log('Guilds erhalten:', guilds.length);
 
-    const container = document.getElementById('guild-list-container') || 
-                     document.getElementById('guilds-grid');
+    const container = document.getElementById('guild-list-container') || document.getElementById('guilds-grid');
     if (!container) return;
 
     if (guilds.length === 0) {
@@ -130,7 +126,7 @@ async function loadGuilds() {
   }
 }
 
-// ── Tickets / Transcripts laden ───────────────────────────────────────────
+// ── Tickets laden ─────────────────────────────────────────────────────────
 async function loadTickets() {
   try {
     if (!GUILD_ID) return;
@@ -138,11 +134,9 @@ async function loadTickets() {
     const tickets = await GET(`/tickets/${GUILD_ID}`);
     const count = tickets.length;
 
-    // Stat-Ticket-Zahl aktualisieren
     const statTickets = document.getElementById('stat-tickets');
     if (statTickets) statTickets.textContent = count;
 
-    // Tabelle aktualisieren (funktioniert in index + transcripts)
     const tbody = document.getElementById('tickets-body') || document.getElementById('transcripts-body');
     if (!tbody) return;
 
@@ -173,48 +167,54 @@ async function loadCommands() {
     if (!container) return;
 
     const commands = [
-      { id: "antinuke", name: "AntiNuke", desc: "Schützt den Server vor Massen-Aktionen", enabled: true },
-      { id: "appeal", name: "Appeal", desc: "Ban-Appeal System", enabled: true },
-      { id: "bannliste", name: "Bannliste", desc: "Zeigt die Bannliste des Servers", enabled: true },
-      { id: "createchannel", name: "CreateChannel", desc: "Erstellt temporäre Channels", enabled: false },
-      { id: "interactiveban", name: "Interactive Ban", desc: "Interaktives Ban-Menü", enabled: true },
-      { id: "music", name: "Music", desc: "Musik-Bot Funktionen", enabled: true },
-      { id: "level", name: "Level System", desc: "Leveling & XP System", enabled: true },
-      { id: "logging", name: "Logging", desc: "Server-Log System", enabled: true },
-      { id: "voicesupport", name: "Voice Support", desc: "Temporäre Voice Channels", enabled: true },
-      { id: "ticketpanel", name: "Ticket Panel", desc: "Ticket-Erstellung Panel", enabled: true },
+      { id: "antinuke",      name: "AntiNuke",          desc: "Schützt den Server vor Massen-Aktionen", enabled: true },
+      { id: "appeal",        name: "Appeal",            desc: "Ban-Appeal System", enabled: true },
+      { id: "bannliste",     name: "Bannliste",         desc: "Zeigt die Bannliste des Servers", enabled: true },
+      { id: "createchannel", name: "CreateChannel",     desc: "Erstellt temporäre Channels", enabled: false },
+      { id: "interactiveban",name: "Interactive Ban",   desc: "Interaktives Ban-Menü", enabled: true },
+      { id: "music",         name: "Music",             desc: "Musik-Bot Funktionen", enabled: true },
+      { id: "level",         name: "Level System",      desc: "Leveling & XP System", enabled: true },
+      { id: "logging",       name: "Logging",           desc: "Server-Log System", enabled: true },
+      { id: "voicesupport",  name: "Voice Support",     desc: "Temporäre Voice Channels", enabled: true },
+      { id: "ticketpanel",   name: "Ticket Panel",      desc: "Ticket-Erstellung Panel", enabled: true },
     ];
 
-    container.innerHTML = commands.map(cmd => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #1f252f;">
-        <div style="flex:1;">
-          <strong style="font-size:15px;">${cmd.name}</strong>
-          <div style="font-size:13px;color:#94a3b8;margin-top:4px;">${cmd.desc}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-            <input type="checkbox" ${cmd.enabled ? 'checked' : ''} 
-                   onchange="toggleCommand('${cmd.id}', this.checked)">
-            <span style="font-size:13px;">Aktiv</span>
-          </label>
-          <button onclick="openCommandSettings('${cmd.id}')" 
-                  class="btn btn-ghost btn-sm">Einstellungen</button>
-        </div>
-      </div>
-    `).join('');
+    let html = '';
+    commands.forEach(cmd => {
+      html += `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #1f252f;">
+          <div style="flex:1;">
+            <strong style="font-size:15px;">${cmd.name}</strong>
+            <div style="font-size:13px;color:#94a3b8;margin-top:4px;">${cmd.desc}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" ${cmd.enabled ? 'checked' : ''} 
+                     onchange="toggleCommand('${cmd.id}', this.checked)">
+              <span style="font-size:13px;">Aktiv</span>
+            </label>
+            <button onclick="openCommandSettings('${cmd.id}')" 
+                    class="btn btn-ghost btn-sm">Einstellungen</button>
+          </div>
+        </div>`;
+    });
+    container.innerHTML = html;
 
   } catch (e) {
     console.error('loadCommands failed', e);
   }
 }
 
-function toggleCommand(id: string, enabled: boolean) {
-  toast(`Command ${id} wurde ${enabled ? 'aktiviert' : 'deaktiviert'}`, 'success');
-}
+// Globale Funktionen für die onclick-Buttons (wichtig!)
+window.toggleCommand = function(id: string, enabled: boolean) {
+  console.log(`Toggle Command: ${id} → ${enabled}`);
+  toast(`Command "${id}" wurde ${enabled ? 'aktiviert' : 'deaktiviert'}`, 'success');
+};
 
-function openCommandSettings(id: string) {
+window.openCommandSettings = function(id: string) {
+  console.log(`Einstellungen für: ${id}`);
   toast(`Einstellungen für "${id}" öffnen... (kommt bald)`, 'info');
-}
+};
 
 // ── Start ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -227,7 +227,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadCommands()
   ]);
 
-  // Auto-Refresh
   setInterval(loadStats, 30000);
   setInterval(loadGuilds, 60000);
   setInterval(loadTickets, 60000);

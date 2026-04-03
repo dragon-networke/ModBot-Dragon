@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import '../styles/commands.css';
 ---
 
 <Layout title="ModBot Dragon · Commands" pageTitle="Commands">
@@ -7,7 +8,7 @@ import Layout from '../layouts/Layout.astro';
     <header class="topbar">
       <div class="topbar-title">Dashboard <span class="topbar-sep">›</span> <span class="crumb-active">Commands</span></div>
       <div class="topbar-right">
-        <button class="btn btn-ghost btn-sm" id="refresh-btn">Refresh</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadCommands()">Refresh</button>
       </div>
     </header>
 
@@ -16,67 +17,153 @@ import Layout from '../layouts/Layout.astro';
         <div class="card-header">
           <div>Command Konfiguration</div>
         </div>
-        <div id="commands-list" style="padding:20px;">
-          Lade Commands...
+        <div id="commands-list" class="commands-container">
+          Lade Commands vom Bot...
         </div>
       </div>
     </main>
   </div>
 </Layout>
 
+<!-- Modal -->
+<div id="command-modal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modal-title">Command Einstellungen</h3>
+      <button onclick="closeModal()" class="modal-close">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button onclick="closeModal()" class="btn btn-ghost">Abbrechen</button>
+      <button onclick="saveCommandConfig()" class="btn btn-primary">Speichern</button>
+    </div>
+  </div>
+</div>
+
 <script>
-// Globale Funktionen direkt im Fenster definieren (damit onclick sie findet)
+// @ts-nocheck
+
+function toast(msg, type = 'info') {
+  const c = document.getElementById('toast-container');
+  if (!c) return;
+  const div = document.createElement('div');
+  div.className = `toast ${type}`;
+  div.textContent = msg;
+  c.appendChild(div);
+  setTimeout(() => div.remove(), 6000);
+}
+
+let currentCommandId = null;
+
 window.toggleCommand = function(id, enabled) {
-  console.log(`Toggle Command: ${id} → ${enabled}`);
   toast(`Command "${id}" wurde ${enabled ? 'aktiviert' : 'deaktiviert'}`, 'success');
 };
 
 window.openCommandSettings = function(id) {
-  console.log(`Einstellungen für: ${id}`);
-  toast(`Einstellungen für "${id}" öffnen... (kommt bald)`, 'info');
+  currentCommandId = id;
+  const modal = document.getElementById('command-modal');
+  const title = document.getElementById('modal-title');
+  const body = document.getElementById('modal-body');
+
+  title.textContent = `${id} Konfiguration`;
+
+  if (id === "antinuke") {
+    body.innerHTML = `
+      <div style="margin-bottom:20px;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+          <input type="checkbox" id="antinuke-enabled" checked>
+          <span><strong>AntiNuke aktivieren</strong></span>
+        </label>
+      </div>
+      <div style="margin-bottom:24px;">
+        <label style="display:block;margin-bottom:8px;">Geschützte Aktionen</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <label><input type="checkbox" checked> Massen-Ban</label>
+          <label><input type="checkbox" checked> Massen-Kick</label>
+          <label><input type="checkbox" checked> Channel Delete</label>
+          <label><input type="checkbox" checked> Role Delete</label>
+          <label><input type="checkbox"> Webhook Create</label>
+          <label><input type="checkbox"> Bot Add</label>
+        </div>
+      </div>
+      <div>
+        <label style="display:block;margin-bottom:8px;">Log-Channel</label>
+        <select id="antinuke-log" style="width:100%;padding:10px;background:#1f252f;border:1px solid #3f4754;border-radius:6px;color:white;">
+          <option value="">Kein Log-Channel</option>
+          <option value="123456">・mod-logs</option>
+        </select>
+      </div>
+    `;
+  } else {
+    body.innerHTML = `
+      <p style="text-align:center;color:#94a3b8;padding:60px;">
+        Detaillierte Konfiguration für <strong>${id}</strong> kommt bald.
+      </p>
+    `;
+  }
+
+  modal.style.display = 'flex';
 };
 
-// Commands laden
-function loadCommands() {
+window.closeModal = function() {
+  document.getElementById('command-modal').style.display = 'none';
+};
+
+window.saveCommandConfig = function() {
+  if (!currentCommandId) return;
+  toast(`Konfiguration für ${currentCommandId} gespeichert!`, 'success');
+  closeModal();
+};
+
+// Echte Commands vom Bot laden
+async function loadCommands() {
   const container = document.getElementById('commands-list');
   if (!container) return;
 
-  const commands = [
-    { id: "antinuke",      name: "AntiNuke",          desc: "Schützt den Server vor Massen-Aktionen", enabled: true },
-    { id: "appeal",        name: "Appeal",            desc: "Ban-Appeal System", enabled: true },
-    { id: "bannliste",     name: "Bannliste",         desc: "Zeigt die Bannliste des Servers", enabled: true },
-    { id: "createchannel", name: "CreateChannel",     desc: "Erstellt temporäre Channels", enabled: false },
-    { id: "interactiveban",name: "Interactive Ban",   desc: "Interaktives Ban-Menü", enabled: true },
-    { id: "music",         name: "Music",             desc: "Musik-Bot Funktionen", enabled: true },
-    { id: "level",         name: "Level System",      desc: "Leveling & XP System", enabled: true },
-    { id: "logging",       name: "Logging",           desc: "Server-Log System", enabled: true },
-    { id: "voicesupport",  name: "Voice Support",     desc: "Temporäre Voice Channels", enabled: true },
-    { id: "ticketpanel",   name: "Ticket Panel",      desc: "Ticket-Erstellung Panel", enabled: true },
-  ];
+  container.innerHTML = '<div style="padding:80px;text-align:center;color:#64748b;">Lade echte Commands vom Bot...</div>';
 
-  let html = '';
-  commands.forEach(cmd => {
-    html += `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #1f252f;">
-        <div style="flex:1;">
-          <strong style="font-size:15px;">${cmd.name}</strong>
-          <div style="font-size:13px;color:#94a3b8;margin-top:4px;">${cmd.desc}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-            <input type="checkbox" ${cmd.enabled ? 'checked' : ''} 
-                   onchange="toggleCommand('${cmd.id}', this.checked)">
-            <span style="font-size:13px;">Aktiv</span>
-          </label>
-          <button onclick="openCommandSettings('${cmd.id}')" 
-                  class="btn btn-ghost btn-sm">Einstellungen</button>
-        </div>
+  try {
+    const res = await fetch(`${window.__API_URL__}/bot/commands`, {
+      headers: { 'Authorization': `Bearer ${window.__API_TOKEN__}` }
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const commands = await res.json();
+
+    let html = '';
+    commands.forEach(cmd => {
+      html += `
+        <div class="command-item">
+          <div class="command-header">
+            <div>
+              <strong class="command-name">${cmd.name}</strong>
+              <div class="command-desc">${cmd.description || 'Keine Beschreibung'}</div>
+            </div>
+            <div class="command-actions">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" ${cmd.enabled ? 'checked' : ''} 
+                       onchange="toggleCommand('${cmd.id}', this.checked)">
+                <span>Aktiv</span>
+              </label>
+              <button onclick="openCommandSettings('${cmd.id}')" class="btn-settings">Einstellungen</button>
+            </div>
+          </div>
+        </div>`;
+    });
+
+    container.innerHTML = html || '<div style="padding:40px;text-align:center;color:#64748b;">Keine Commands gefunden</div>';
+
+  } catch (e) {
+    console.error(e);
+    container.innerHTML = `
+      <div style="padding:60px;text-align:center;color:#ef4444;">
+        Konnte Commands nicht vom Bot laden.<br>
+        API: ${window.__API_URL__}/bot/commands
       </div>`;
-  });
-  container.innerHTML = html;
+  }
 }
 
-// Start
 document.addEventListener('DOMContentLoaded', () => {
   loadCommands();
 });

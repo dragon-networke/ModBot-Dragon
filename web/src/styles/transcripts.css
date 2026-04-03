@@ -1,0 +1,22 @@
+/* transcripts.css */
+.table-container {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 16px 12px;
+  background: #1f252f;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.data-table td {
+  padding: 16px 12px;
+  border-top: 1px solid #2a2f38;
+}

@@ -2,17 +2,19 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="ModBot Dragon · Server" pageTitle="Server wechseln">
+<Layout title="ModBot Dragon · Server auswählen" pageTitle="Server auswählen">
   <div class="main">
     <header class="topbar">
-      <div class="topbar-title">Dashboard <span class="topbar-sep">›</span> <span class="crumb-active">Server</span></div>
+      <div class="topbar-title">Dashboard <span class="topbar-sep">›</span> <span class="crumb-active">Server auswählen</span></div>
     </header>
 
     <main class="content">
       <div class="card">
         <div class="card-header">
-          <div>Verfügbare Server</div>
+          <div>Deine Server</div>
+          <div style="font-size:13px;color:#64748b;">Wähle einen Server oder lade den Bot ein</div>
         </div>
+        
         <div id="guilds-grid" class="guilds-grid">
           Lade Server...
         </div>
@@ -20,3 +22,84 @@ import Layout from '../layouts/Layout.astro';
     </main>
   </div>
 </Layout>
+
+<script>
+// @ts-nocheck
+
+async function loadGuilds() {
+  const container = document.getElementById('guilds-grid');
+  if (!container) return;
+
+  container.innerHTML = '<div style="padding:80px;text-align:center;color:#64748b;">Lade deine Server...</div>';
+
+  try {
+    // WICHTIG: Wir laden erstmal nur die Server, auf denen der Bot bereits ist
+    // (das funktioniert bei dir sicher)
+    const res = await fetch(`${window.__API_URL__}/bot/guilds`, {
+      headers: { 'Authorization': `Bearer ${window.__API_TOKEN__}` }
+    });
+
+    if (!res.ok) throw new Error('Fehler beim Laden');
+
+    const guilds = await res.json();
+
+    if (guilds.length === 0) {
+      container.innerHTML = `
+        <div style="padding:60px;text-align:center;color:#f59e0b;">
+          Der Bot ist noch auf keinem Server.<br><br>
+          <a href="https://discord.com/oauth2/authorize?client_id=DEINE_CLIENT_ID&scope=bot+applications.commands&permissions=8" 
+             target="_blank" style="color:#3b82f6;">Bot jetzt einladen</a>
+        </div>`;
+      return;
+    }
+
+    let html = '';
+    guilds.forEach(g => {
+      html += `
+        <div class="guild-card" onclick="selectGuild('${g.id}', '${g.name.replace(/'/g, "\\'")}')">
+          <div class="guild-icon">
+            ${g.icon ? `<img src="${g.icon}" alt="${g.name}">` : `<span>${g.name.charAt(0)}</span>`}
+          </div>
+          <div class="guild-info">
+            <h4>${g.name}</h4>
+            <p>${g.memberCount || '?'} Mitglieder</p>
+          </div>
+          <button class="btn-config">Konfigurieren</button>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+
+  } catch (e) {
+    console.error(e);
+    container.innerHTML = `
+      <div style="padding:60px;text-align:center;color:#ef4444;">
+        Fehler beim Laden der Server.<br>
+        Stelle sicher, dass der Bot läuft.
+      </div>`;
+  }
+}
+
+window.selectGuild = function(guildId, guildName) {
+  document.cookie = `selectedGuild=${guildId}; path=/; max-age=31536000`;
+  toast(`Server "${guildName}" ausgewählt`, 'success');
+  
+  setTimeout(() => {
+    window.location.href = '/';
+  }, 800);
+};
+
+function toast(msg, type = 'success') {
+  const c = document.getElementById('toast-container');
+  if (!c) return;
+  const div = document.createElement('div');
+  div.className = `toast ${type}`;
+  div.textContent = msg;
+  c.appendChild(div);
+  setTimeout(() => div.remove(), 5000);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadGuilds();
+});
+</script>
