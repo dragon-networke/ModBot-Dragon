@@ -1,6 +1,56 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import GuildSelector from '../components/GuildSelector.astro';
 import "../styles/settings.css";
+
+// Get session token - aus den locals (vom middleware)
+const sessionBase64 = Astro.cookies.get('session')?.value;
+let token = '';
+
+if (sessionBase64) {
+  try {
+    const sessionData = JSON.parse(Buffer.from(sessionBase64, 'base64').toString('utf-8'));
+    token = sessionData.accessToken;
+  } catch (e) {
+    console.error('Fehler beim Dekodieren der Session:', e);
+  }
+}
+
+const apiSecret = import.meta.env.API_SECRET || 'changeme';
+
+let userGuilds = [];
+let clientId = '1442980448597708892';
+let loadError = '';
+
+if (token) {
+  try {
+    const apiUrl = import.meta.env.API_URL || 'http://localhost:3001';
+    console.log('Loading guilds from:', apiUrl);
+    console.log('Token present:', !!token);
+    
+    const response = await fetch(`${apiUrl}/bot/all-user-guilds`, {
+      headers: {
+        'Authorization': `Bearer ${apiSecret}`,
+        'x-discord-token': token,
+      }
+    });
+
+    console.log('Response status:', response.status);
+
+    if (response.ok) {
+      userGuilds = await response.json();
+      console.log('Loaded guilds:', userGuilds);
+    } else {
+      const error = await response.json();
+      loadError = `Fehler (${response.status}): ${error.error || 'Unbekannter Fehler'}`;
+      console.error('API Error:', error);
+    }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unbekannter Fehler';
+    loadError = `Fehler beim Laden: ${errorMsg}`;
+    console.error('Fetch error:', error);
+  }
+}
 ---
 
 <Layout title="ModBot Dragon · Einstellungen" pageTitle="Einstellungen">
@@ -10,13 +60,59 @@ import "../styles/settings.css";
     </header>
 
     <main class="content">
+      {!token && (
+        <div class="card" style="background: #312e81; border-color: #6366f1;">
+          <div class="card-header">
+            <div>Anmeldung erforderlich</div>
+          </div>
+          <div style="padding:30px;">
+            <p>Bitte melde dich an, um deine Server zu sehen.</p>
+          </div>
+        </div>
+      )}
+
+      {loadError && (
+        <div class="card" style="background: #7f1d1d; border-color: #dc2626;">
+          <div class="card-header">
+            <div>⚠️ Fehler</div>
+          </div>
+          <div style="padding:30px;">
+            <p>{loadError}</p>
+          </div>
+        </div>
+      )}
+
+      <!-- MEINE SERVER SECTION -->
+      {token && userGuilds.length > 0 && (
+        <div class="card">
+          <div class="card-header">
+            <div>Meine Server ({userGuilds.length})</div>
+          </div>
+          <div style="padding:30px;">
+            <GuildSelector guilds={userGuilds} clientId={clientId} />
+          </div>
+        </div>
+      )}
+
+      {token && userGuilds.length === 0 && !loadError && (
+        <div class="card">
+          <div class="card-header">
+            <div>Keine Server gefunden</div>
+          </div>
+          <div style="padding:30px;">
+            <p>Du hast keine Server, auf denen du Admin bist.</p>
+          </div>
+        </div>
+      )}
+
+      <!-- QUICK INVITE BUTTON -->
       <div class="card">
         <div class="card-header">
-          <div>Bot einladen</div>
+          <div>Bot schnell einladen</div>
         </div>
         <div style="padding:40px 30px;text-align:center;">
           <p style="margin-bottom:24px;color:#94a3b8;">
-            Lade ModBot Dragon auf einen deiner Server ein
+            Direkter Einladungslink für einen bestimmten Server
           </p>
           <a 
             href="https://discord.com/oauth2/authorize?client_id=1442980448597708892&scope=bot+applications.commands&permissions=8" 
@@ -31,7 +127,7 @@ import "../styles/settings.css";
         </div>
       </div>
 
-      <!-- Weitere Einstellungs-Bereiche (kannst du später erweitern) -->
+      <!-- WEITERE EINSTELLUNGEN -->
       <div class="card">
         <div class="card-header">
           <div>Weitere Einstellungen</div>

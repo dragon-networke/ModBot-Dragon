@@ -15,7 +15,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Middleware: API-Key Authentifizierung
 function requireAuth(req, res, next) {
   const auth = req.headers['authorization'];
   if (!auth || auth !== 'Bearer ' + API_SECRET) {
@@ -24,7 +23,7 @@ function requireAuth(req, res, next) {
   next();
 }
 
-// Hilfsfunktionen
+// Hilfsfunktionen (unverändert)
 function loadJson(filePath) {
   try {
     if (!fs.existsSync(filePath)) return {};
@@ -47,8 +46,6 @@ function saveJson(filePath, data) {
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 
-// ==================== BOT CLIENT ====================
-
 let botClient = null;
 
 function setBotClient(client) {
@@ -58,9 +55,7 @@ function setBotClient(client) {
 // ==================== BOT STATUS ====================
 
 app.get('/bot/status', requireAuth, (req, res) => {
-  if (!botClient) {
-    return res.json({ status: 'offline', guilds: 0, users: 0, ping: 0 });
-  }
+  if (!botClient) return res.json({ status: 'offline', guilds: 0, users: 0, ping: 0 });
   res.json({
     status: 'online',
     guilds: botClient.guilds.cache.size,
@@ -70,7 +65,7 @@ app.get('/bot/status', requireAuth, (req, res) => {
   });
 });
 
-// ==================== SERVER DES BOTS (nur wo Bot drin ist) ====================
+// ==================== SERVER, AUF DENEN DER BOT BEREITS IST ====================
 
 app.get('/bot/guilds', requireAuth, (req, res) => {
   if (!botClient) return res.json([]);
@@ -84,22 +79,32 @@ app.get('/bot/guilds', requireAuth, (req, res) => {
   res.json(guilds);
 });
 
-// ==================== ALLE SERVER DES USERS (Admin-Rechte) ====================
+// ==================== ALLE SERVER, AUF DENEN DER USER ADMIN/OWNER IST ====================
 
 app.get('/bot/user-guilds', requireAuth, async (req, res) => {
   if (!botClient) return res.json([]);
 
   try {
-    // Hier brauchst du den User Access Token aus dem Login-Flow
-    // Für den Anfang nutzen wir eine vereinfachte Version mit botClient
-    const userGuilds = botClient.guilds.cache.map(g => ({
-      id: g.id,
-      name: g.name,
-      icon: g.iconURL(),
-      memberCount: g.memberCount,
-      bot_in_guild: true,
-      permissions: "Administrator" // Platzhalter
-    }));
+    const userGuilds = [];
+
+    // Hole alle Guilds, in denen der Bot ist
+    for (const guild of botClient.guilds.cache.values()) {
+      try {
+        const member = await guild.members.fetch(botClient.user.id);
+        const isAdmin = member.permissions.has('Administrator') || guild.ownerId === botClient.user.id;
+
+        userGuilds.push({
+          id: guild.id,
+          name: guild.name,
+          icon: guild.iconURL(),
+          memberCount: guild.memberCount,
+          bot_in_guild: true,
+          isAdmin: isAdmin
+        });
+      } catch (e) {
+        continue;
+      }
+    }
 
     res.json(userGuilds);
 
@@ -109,7 +114,7 @@ app.get('/bot/user-guilds', requireAuth, async (req, res) => {
   }
 });
 
-// ==================== COMMANDS ====================
+// ==================== COMMANDS (unverändert) ====================
 
 app.get('/bot/commands', requireAuth, (req, res) => {
   if (!botClient) return res.json([]);
@@ -142,9 +147,62 @@ app.get('/bot/commands', requireAuth, (req, res) => {
   }
 });
 
-// ==================== RESTLICHE ROUTEN (unverändert) ====================
+// ==================== USER GUILDS (ALL) ====================
 
-// ... (deine bestehenden Routen für tickets, antinuke, voicesupport, appeals usw. bleiben gleich)
+app.get('/bot/all-user-guilds', requireAuth, async (req, res) => {
+  const discordToken = req.headers['x-discord-token'];
+  if (!discordToken) {
+    return res.status(400).json({ error: 'Discord Token erforderlich' });
+  }
+
+  try {
+    // Hole alle Guilds des Users vom Discord API
+    const response = await fetch('https://discord.com/api/users/@me/guilds', {
+      headers: { Authorization: 'Bearer ' + discordToken }
+    });
+
+    if (!response.ok) {
+      return res.status(401).json({ error: 'Ungültiger Discord Token' });
+    }
+
+    const userGuilds = await response.json();
+
+    // Hole alle Guilds, auf denen der Bot ist
+    const botGuildIds = new Set(botClient?.guilds.cache.keys() || []);
+    
+    console.log('Bot Guild IDs:', Array.from(botGuildIds));
+    console.log('User Guilds Count:', userGuilds.length);
+
+    // Filter: Guilds wo User Admin/Owner ist
+    const filteredGuilds = userGuilds
+      .filter(g => {
+        // Check Admin permission (0x8) or Manage Guild permission (0x20)
+        const hasPermission = (g.permissions & 0x8) === 0x8 || (g.permissions & 0x20) === 0x20;
+        return hasPermission;
+      })
+      .map(g => {
+        const isBotInGuild = botGuildIds.has(g.id);
+        return {
+          id: g.id,
+          name: g.name,
+          icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
+          bot_in_guild: isBotInGuild
+        };
+      });
+
+    console.log('Filtered Guilds:', filteredGuilds.map(g => ({ name: g.name, bot_in_guild: g.bot_in_guild })));
+
+    res.json(filteredGuilds);
+
+  } catch (e) {
+    console.error('Fehler beim Laden der User-Guilds:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ==================== RESTLICHE ROUTEN (unverändert lassen) ====================
+
+// Deine bestehenden Routen für tickets, antinuke, voicesupport, appeals usw. bleiben gleich
 
 // ==================== API STARTEN ====================
 
@@ -156,3 +214,27 @@ function startApi(client) {
 }
 
 module.exports = { startApi, setBotClient };
+
+// --- Serve frontend when built -------------------------------------------------
+// If the Astro/Vite build exists at /web/dist, serve it as static files so the
+// same server can provide the frontend and the API.
+const webDist = path.join(process.cwd(), 'web', 'dist');
+if (fs.existsSync(webDist)) {
+  app.use(express.static(webDist));
+  console.log('[API] Serving static site from', webDist);
+
+  // Fallback: serve index.html for non-API routes (SPA support)
+  app.get('*', (req, res, next) => {
+    // Let API routes continue to their handlers
+    if (req.path.startsWith('/bot') || req.path.startsWith('/api')) return next();
+
+    const filePath = path.join(webDist, req.path);
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      return res.sendFile(filePath);
+    }
+    return res.sendFile(path.join(webDist, 'index.html'));
+  });
+
+} else {
+  console.log('[API] No built web site found at', webDist, '- run `npm run build` inside /web to generate it.');
+}

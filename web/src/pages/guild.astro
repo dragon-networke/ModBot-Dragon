@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import '../styles/guild.css';
 ---
 
 <Layout title="ModBot Dragon · Server auswählen" pageTitle="Server auswählen">
@@ -11,7 +12,7 @@ import Layout from '../layouts/Layout.astro';
     <main class="content">
       <div class="card">
         <div class="card-header">
-          <div>Deine Server</div>
+          <div>Deine Server (mit Admin-Rechten)</div>
           <div style="font-size:13px;color:#64748b;">Wähle einen Server oder lade den Bot ein</div>
         </div>
         
@@ -30,12 +31,10 @@ async function loadGuilds() {
   const container = document.getElementById('guilds-grid');
   if (!container) return;
 
-  container.innerHTML = '<div style="padding:80px;text-align:center;color:#64748b;">Lade deine Server...</div>';
+  container.innerHTML = '<div style="padding:80px;text-align:center;color:#64748b;">Lade deine Admin-Server...</div>';
 
   try {
-    // WICHTIG: Wir laden erstmal nur die Server, auf denen der Bot bereits ist
-    // (das funktioniert bei dir sicher)
-    const res = await fetch(`${window.__API_URL__}/bot/guilds`, {
+    const res = await fetch(`${window.__API_URL__}/bot/user-guilds`, {
       headers: { 'Authorization': `Bearer ${window.__API_TOKEN__}` }
     });
 
@@ -46,17 +45,18 @@ async function loadGuilds() {
     if (guilds.length === 0) {
       container.innerHTML = `
         <div style="padding:60px;text-align:center;color:#f59e0b;">
-          Der Bot ist noch auf keinem Server.<br><br>
-          <a href="https://discord.com/oauth2/authorize?client_id=DEINE_CLIENT_ID&scope=bot+applications.commands&permissions=8" 
-             target="_blank" style="color:#3b82f6;">Bot jetzt einladen</a>
+          Du hast auf keinem Server Administrator-Rechte.<br>
+          Du brauchst Admin-Rechte, um das Dashboard zu nutzen.
         </div>`;
       return;
     }
 
     let html = '';
     guilds.forEach(g => {
+      const botInGuild = g.bot_in_guild || false;
+
       html += `
-        <div class="guild-card" onclick="selectGuild('${g.id}', '${g.name.replace(/'/g, "\\'")}')">
+        <div class="guild-card">
           <div class="guild-icon">
             ${g.icon ? `<img src="${g.icon}" alt="${g.name}">` : `<span>${g.name.charAt(0)}</span>`}
           </div>
@@ -64,7 +64,13 @@ async function loadGuilds() {
             <h4>${g.name}</h4>
             <p>${g.memberCount || '?'} Mitglieder</p>
           </div>
-          <button class="btn-config">Konfigurieren</button>
+          
+          <div class="guild-actions">
+            ${botInGuild 
+              ? `<button onclick="selectGuild('${g.id}', '${g.name.replace(/'/g, "\\'")}')" class="btn-config">Konfigurieren</button>`
+              : `<button onclick="inviteBot('${g.id}')" class="btn-invite">Bot einladen</button>`
+            }
+          </div>
         </div>`;
     });
 
@@ -74,8 +80,8 @@ async function loadGuilds() {
     console.error(e);
     container.innerHTML = `
       <div style="padding:60px;text-align:center;color:#ef4444;">
-        Fehler beim Laden der Server.<br>
-        Stelle sicher, dass der Bot läuft.
+        Fehler beim Laden deiner Server.<br>
+        Bitte melde dich erneut an.
       </div>`;
   }
 }
@@ -87,6 +93,12 @@ window.selectGuild = function(guildId, guildName) {
   setTimeout(() => {
     window.location.href = '/';
   }, 800);
+};
+
+window.inviteBot = function(guildId) {
+  const clientId = import.meta.env.PUBLIC_DISCORD_CLIENT_ID || 'DEINE_CLIENT_ID';
+  const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot+applications.commands&permissions=8&guild_id=${guildId}`;
+  window.open(inviteUrl, '_blank');
 };
 
 function toast(msg, type = 'success') {

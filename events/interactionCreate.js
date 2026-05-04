@@ -1,5 +1,7 @@
 const { handleMusicButton } = require('../musicSetup');
 const appeal = require('../commands/appeal');
+const { handlePunishment } = require('./punishmentHandler');
+const { handleGiveawayButton } = require('../commands/giveaway');
 
 module.exports = {
   name: 'interactionCreate',
@@ -64,6 +66,32 @@ module.exports = {
           console.error('[Music] Button-Fehler:', error);
           if (!interaction.replied && !interaction.deferred) {
             await interaction.reply({ content: '❌ Fehler beim Verarbeiten des Musik-Buttons!', flags: 64 }).catch(() => {});
+          }
+        }
+        return;
+      }
+
+      // Strafen-Buttons (Mute, Kick, Ban, Timeout)
+      if (interaction.customId.startsWith('punish_')) {
+        try {
+          return await handlePunishment(interaction);
+        } catch (error) {
+          console.error('[Punishment] Button-Fehler:', error);
+          if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: '❌ Fehler beim Verhängen der Strafe!', flags: 64 }).catch(() => {});
+          }
+        }
+        return;
+      }
+
+      // Giveaway-Buttons
+      if (interaction.customId.startsWith('giveaway_')) {
+        try {
+          return await handleGiveawayButton(interaction);
+        } catch (error) {
+          console.error('[Giveaway] Button-Fehler:', error);
+          if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: '❌ Fehler beim Giveaway!', flags: 64 }).catch(() => {});
           }
         }
         return;

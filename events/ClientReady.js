@@ -10,6 +10,41 @@ module.exports = {
     console.log(`✅ Bot ist online! Eingeloggt als ${client.user.tag}`);
     logger.info(`Bot eingeloggt als ${client.user.tag}`);
 
+    // ====================== SLASH COMMANDS DEPLOYEN ======================
+    try {
+      console.log("🔄 Registriere Slash Commands bei Discord...");
+
+      const commands = [
+        require("../commands/warn").data.toJSON(),
+        require("../commands/interactive_ban_request").data.toJSON(),
+        require("../commands/bannlist").data.toJSON(),
+        require("../commands/setupLevels").data.toJSON(),
+        require("../commands/appeal").data.toJSON(),
+        require("../commands/ticketPanel").data.toJSON(),
+        require("../commands/setupVoiceSupport").data.toJSON(),
+        require("../commands/antiNuke").data.toJSON(),
+        // require("../commands/music").data.toJSON(), // ❌ Deaktiviert wegen YouTube-API Fehler
+        require("../commands/setupChannelDelete").data.toJSON(),
+        require("../commands/createChannel").data.toJSON(),
+        require("../commands/leaderboard").data.toJSON(),
+        require("../commands/rank").data.toJSON(),
+        require("../commands/transcript").data.toJSON(),
+        require("../commands/logtest").data.toJSON(),
+        require("../commands/setupAutoMod").data.toJSON(),
+        require("../commands/giveaway").data.toJSON(),
+      ];
+
+      await client.application.commands.set(commands);
+
+      console.log(`✅ Erfolgreich ${commands.length} Slash Commands deployed!`);
+      logger.info(`${commands.length} Slash Commands bei Discord registriert.`);
+
+    } catch (error) {
+      console.error("❌ Fehler beim Deployen der Slash Commands:", error.message);
+      logger.error("Fehler beim Deployen der Commands: " + error.message);
+    }
+    // =====================================================================
+
     // Log-Channel Startnachricht
     const logChannelId = process.env.LOG_CHANNEL_ID;
     if (logChannelId) {
@@ -39,12 +74,12 @@ module.exports = {
     startApi(client);
     logger.info("API gestartet auf Port " + (process.env.API_PORT || 3001));
 
-    // Musik-Player initialisieren
-    try {
-      await setupMusic(client);
-      logger.info("Musik-Player initialisiert.");
-    } catch (e) {
-      logger.error("Fehler beim Initialisieren des Musik-Players: " + e.message);
-    }
+    // Musik-Player initialisieren (deaktiviert wegen YouTube-API Fehler)
+    // try {
+    //   await setupMusic(client);
+    //   logger.info("Musik-Player initialisiert.");
+    // } catch (e) {
+    //   logger.error("Fehler beim Initialisieren des Musik-Players: " + e.message);
+    // }
   },
 };

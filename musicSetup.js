@@ -6,106 +6,122 @@ let playerInstance = null;
 async function setupMusic(client) {
   if (playerInstance) return playerInstance;
 
-  const player = new Player(client);
-  playerInstance = player;
-
-  // ── Extractors laden ──────────────────────────────────────────────────────
-
   try {
-    const { YoutubeiExtractor } = require('discord-player-youtubei');
-    await player.extractors.register(YoutubeiExtractor, {});
-    console.log('[Music] YoutubeiExtractor geladen');
-  } catch {
+    const player = new Player(client);
+    playerInstance = player;
+
+    // ── Extractors laden ──────────────────────────────────────────────────────
+
     try {
-      const { YoutubeiExtractor } = require('@discord-player/extractor');
+      const { YoutubeiExtractor } = require('discord-player-youtubei');
       await player.extractors.register(YoutubeiExtractor, {});
-      console.log('[Music] YoutubeiExtractor (fallback) geladen');
+      console.log('[Music] ✅ YoutubeiExtractor geladen');
     } catch (e) {
-      console.error('[Music] YouTube-Extractor nicht verfügbar:', e.message);
+      console.error('[Music] ❌ discord-player-youtubei Fehler:', e.message);
+      try {
+        const { YoutubeiExtractor } = require('@discord-player/extractor');
+        await player.extractors.register(YoutubeiExtractor, {});
+        console.log('[Music] ✅ YoutubeiExtractor (fallback) geladen');
+      } catch (e2) {
+        console.error('[Music] ❌ YouTube-Extractor nicht verfügbar:', e2.message);
+      }
     }
-  }
 
-  try {
-    const { SoundCloudExtractor } = require('@discord-player/extractor');
-    await player.extractors.register(SoundCloudExtractor, {});
-    console.log('[Music] SoundCloudExtractor geladen');
-  } catch { /* optional */ }
+    try {
+      const { SoundCloudExtractor } = require('@discord-player/extractor');
+      await player.extractors.register(SoundCloudExtractor, {});
+      console.log('[Music] ✅ SoundCloudExtractor geladen');
+    } catch (e) {
+      console.warn('[Music] ⚠️ SoundCloudExtractor nicht verfügbar:', e.message);
+    }
 
-  try {
-    const { AttachmentExtractor } = require('@discord-player/extractor');
-    await player.extractors.register(AttachmentExtractor, {});
-    console.log('[Music] AttachmentExtractor geladen');
-  } catch { /* optional */ }
+    try {
+      const { AttachmentExtractor } = require('@discord-player/extractor');
+      await player.extractors.register(AttachmentExtractor, {});
+      console.log('[Music] ✅ AttachmentExtractor geladen');
+    } catch (e) {
+      console.warn('[Music] ⚠️ AttachmentExtractor nicht verfügbar:', e.message);
+    }
 
-  console.log('[Music] Registrierte Extractors:', player.extractors.size);
+    console.log(`[Music] ✅ Registrierte Extractors: ${player.extractors.size}`);
+    
+    if (player.extractors.size === 0) {
+      console.error('[Music] ⚠️ WARNUNG: KEINE EXTRACTORS GELADEN! Musik wird nicht funktionieren!');
+    }
 
-  // ── Debug Events ───────────────────────────────────────────────────────────
+    // ── Debug Events ───────────────────────────────────────────────────────────
 
-  player.events.on('audioTrackAdd', (queue, track) => {
-    console.log('[Music] Track hinzugefügt:', track.title);
-  });
+    player.events.on('audioTrackAdd', (queue, track) => {
+      console.log('[Music] Track hinzugefügt:', track.title);
+    });
 
-  player.events.on('playerSkip', (queue, track) => {
-    console.log('[Music] Track übersprungen:', track?.title);
-  });
+    player.events.on('playerSkip', (queue, track) => {
+      console.log('[Music] Track übersprungen:', track?.title);
+    });
 
-  player.events.on('playerTriggeredHandledError', (queue, error) => {
-    console.error('[Music] Handled Error:', error.message);
-  });
+    player.events.on('playerTriggeredHandledError', (queue, error) => {
+      console.error('[Music] Handled Error:', error.message);
+    });
 
-  // ── Player Events ──────────────────────────────────────────────────────────
+    // ── Player Events ──────────────────────────────────────────────────────────
 
-  player.events.on('playerStart', (queue, track) => {
-    console.log('[Music] Spielt:', track.title);
-    const channel = queue.metadata?.channel;
-    if (!channel) return;
+    player.events.on('playerStart', (queue, track) => {
+      console.log('[Music] Spielt:', track.title);
+      const channel = queue.metadata?.channel;
+      if (!channel) return;
 
-    const embed = new EmbedBuilder()
-      .setTitle('▶️ Spielt jetzt')
-      .setDescription(`**[${track.title}](${track.url})**\nvon ${track.author}`)
-      .setThumbnail(track.thumbnail?.startsWith('http') ? track.thumbnail : null)
-      .setColor(0x3b82f6)
-      .addFields(
-        { name: '⏱️ Dauer',  value: track.duration,                        inline: true },
-        { name: '🔊 Volume', value: `${queue.node.volume}%`,                inline: true },
-        { name: '📋 Queue',  value: `${queue.tracks.size} weitere Song(s)`, inline: true },
-      )
-      .setFooter({ text: `Angefragt von ${track.requestedBy?.username || 'Unbekannt'}` })
-      .setTimestamp();
+      const embed = new EmbedBuilder()
+        .setTitle('▶️ Spielt jetzt')
+        .setDescription(`**[${track.title}](${track.url})**\nvon ${track.author}`)
+        .setThumbnail(track.thumbnail?.startsWith('http') ? track.thumbnail : null)
+        .setColor(0x3b82f6)
+        .addFields(
+          { name: '⏱️ Dauer',  value: track.duration,                        inline: true },
+          { name: '🔊 Volume', value: `${queue.node.volume}%`,                inline: true },
+          { name: '📋 Queue',  value: `${queue.tracks.size} weitere Song(s)`, inline: true },
+        )
+        .setFooter({ text: `Angefragt von ${track.requestedBy?.username || 'Unbekannt'}` })
+        .setTimestamp();
 
-    channel.send({ embeds: [embed] }).catch(() => {});
-  });
+      channel.send({ embeds: [embed] }).catch(() => {});
+    });
 
-  player.events.on('emptyQueue', (queue) => {
-    console.log('[Music] Queue leer');
-    queue.metadata?.channel?.send({
-      embeds: [new EmbedBuilder().setColor(0x64748b).setDescription('✅ Queue leer — alle Songs abgespielt.')],
-    }).catch(() => {});
-  });
+    player.events.on('emptyQueue', (queue) => {
+      console.log('[Music] Queue leer');
+      queue.metadata?.channel?.send({
+        embeds: [new EmbedBuilder().setColor(0x64748b).setDescription('✅ Queue leer — alle Songs abgespielt.')],
+      }).catch(() => {});
+    });
 
-  player.events.on('disconnect', (queue) => {
-    console.log('[Music] Bot disconnected');
-    queue.metadata?.channel?.send({
-      embeds: [new EmbedBuilder().setColor(0x64748b).setDescription('👋 Voice-Channel verlassen.')],
-    }).catch(() => {});
-  });
+    player.events.on('disconnect', (queue) => {
+      console.log('[Music] Bot disconnected');
+      queue.metadata?.channel?.send({
+        embeds: [new EmbedBuilder().setColor(0x64748b).setDescription('👋 Voice-Channel verlassen.')],
+      }).catch(() => {});
+    });
 
-  player.events.on('error', (queue, error) => {
-    console.error('[Music] Queue-Fehler:', error.message);
-    queue.metadata?.channel?.send({
-      embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`❌ Fehler: ${error.message}`)],
-    }).catch(() => {});
-  });
+    player.events.on('error', (queue, error) => {
+      console.error('[Music] Queue-Fehler:', error.message);
+      queue.metadata?.channel?.send({
+        embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`❌ Fehler: ${error.message}`)],
+      }).catch(() => {});
+    });
 
-  player.events.on('playerError', (queue, error) => {
-    console.error('[Music] Player-Fehler:', error.message);
-    queue.metadata?.channel?.send({
-      embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`❌ Player-Fehler: ${error.message}`)],
-    }).catch(() => {});
-  });
+    player.events.on('playerError', (queue, error) => {
+      console.error('[Music] Player-Fehler:', error.message);
+      queue.metadata?.channel?.send({
+        embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`❌ Player-Fehler: ${error.message}`)],
+      }).catch(() => {});
+    });
 
   console.log('[Music] Player initialisiert');
-  return player;
+    return player;
+
+  } catch (error) {
+    console.error('[Music] KRITISCHER FEHLER beim Initialisieren:', error.message);
+    console.error(error.stack);
+    throw error;
+  }
 }
 
 // ── Button Handler ─────────────────────────────────────────────────────────
